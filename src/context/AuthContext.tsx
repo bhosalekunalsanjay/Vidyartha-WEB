@@ -1,10 +1,22 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import api from '../api/axios.instance.js'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import api from '../api/api.ts'
+interface User {
+  id: string
+  name: string
+  username: string
+}
 
-const AuthContext = createContext(null)
+interface AuthContextType {
+  user: User | null
+  isLoading: boolean
+  login: (username: string, password: string) => Promise<void>
+  logout: () => void
+}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null)
+const AuthContext = createContext<AuthContextType | null>(null)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // On app load, check if we have a token and try to restore the session.
@@ -15,14 +27,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
     api
-      .get('/auth/me')
+      .get<User>('/auth/me')
       .then((res) => setUser(res.data))
       .catch(() => localStorage.removeItem('accessToken'))
       .finally(() => setIsLoading(false))
   }, [])
 
-  const login = async (email:string, password:string) => {
-    const res = await api.post('/auth/login', { email, password })
+  const login = async (username: string, password: string) => {
+    const res = await api.post<{ accessToken: string; user: User }>('/auth/login', {
+      username,
+      password,
+    })
     localStorage.setItem('accessToken', res.data.accessToken)
     setUser(res.data.user)
   }
