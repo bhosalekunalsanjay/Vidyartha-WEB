@@ -17,12 +17,17 @@ import TextField from '@mui/material/TextField'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import Menu from '@mui/material/Menu'
+import TablePagination from '@mui/material/TablePagination'
+import Backdrop from '@mui/material/Backdrop'
+import CircularProgress from '@mui/material/CircularProgress'
+import Skeleton from '@mui/material/Skeleton'
 import { format } from 'date-fns'
 import React from 'react'
 import api from '../api/api'
 import type { User } from '../types/user.type'
 import { UserStatus } from '../enums/UserStatus'
 import { UserRole } from '../enums/UserRole'
+import { Gender } from '../enums/Gender'
 import { notify } from '../store/notification.store'
 
 // Icons
@@ -30,117 +35,116 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import ToggleOnIcon from '@mui/icons-material/ToggleOnOutlined'
-import { Gender } from '../enums/Gender'
-
-const MOCK_USERS: User[] = [
-  {
-    id: 'USR-101',
-    schoolId: 'school-1',
-    username: 'sarah.admin',
-    email: 'sarah.jenkins@vidyartha.edu',
-    firstName: 'Sarah',
-    lastName: 'Jenkins',
-    dateOfBirth: new Date('1985-06-15'),
-    gender: 'Female',
-    refreshToken: '',
-    refreshTokenExpiry: new Date(),
-    role: UserRole.ADMIN,
-    status: UserStatus.ACTIVE,
-  },
-  {
-    id: 'USR-102',
-    schoolId: 'school-1',
-    username: 'alex.teacher',
-    email: 'alex.rivera@vidyartha.edu',
-    firstName: 'Alex',
-    lastName: 'Rivera',
-    dateOfBirth: new Date('1990-09-22'),
-    gender: 'Male',
-    refreshToken: '',
-    refreshTokenExpiry: new Date(),
-    role: UserRole.TEACHER,
-    status: UserStatus.ACTIVE,
-  },
-  {
-    id: 'USR-103',
-    schoolId: 'school-1',
-    username: 'julian.student',
-    email: 'julian.vance@vidyartha.edu',
-    firstName: 'Julian',
-    lastName: 'Vance',
-    dateOfBirth: new Date('2010-04-12'),
-    gender: 'Male',
-    refreshToken: '',
-    refreshTokenExpiry: new Date(),
-    role: UserRole.STUDENT,
-    status: UserStatus.ACTIVE,
-  },
-  {
-    id: 'USR-104',
-    schoolId: 'school-1',
-    username: 'clara.teacher',
-    email: 'clara.oswald@vidyartha.edu',
-    firstName: 'Clara',
-    lastName: 'Oswald',
-    dateOfBirth: new Date('1993-11-05'),
-    gender: 'Female',
-    refreshToken: '',
-    refreshTokenExpiry: new Date(),
-    role: UserRole.TEACHER,
-    status: UserStatus.INACTIVE,
-  },
-  {
-    id: 'USR-105',
-    schoolId: 'school-1',
-    username: 'rebecca.student',
-    email: 'rebecca.miller@vidyartha.edu',
-    firstName: 'Rebecca',
-    lastName: 'Miller',
-    dateOfBirth: new Date('2009-08-30'),
-    gender: 'Female',
-    refreshToken: '',
-    refreshTokenExpiry: new Date(),
-    role: UserRole.STUDENT,
-    status: UserStatus.SUSPENDED,
-  },
-]
 
 export default function UsersPage() {
   const [users, setUsers] = React.useState<User[]>([])
 
+  // Loading States
+  const [pageLoading, setPageLoading] = React.useState(true)
+  const [saveLoading, setSaveLoading] = React.useState(false)
+
   // Drawer Form State
   const [drawerOpen, setDrawerOpen] = React.useState(false)
   const [editingUser, setEditingUser] = React.useState<User | null>(null)
+  
   const [formFirstName, setFormFirstName] = React.useState('')
   const [formLastName, setFormLastName] = React.useState('')
   const [formUsername, setFormUsername] = React.useState('')
   const [formEmail, setFormEmail] = React.useState('')
+  const [formPassword, setFormPassword] = React.useState('')
+  const [formConfirmPassword, setFormConfirmPassword] = React.useState('')
   const [formGender, setFormGender] = React.useState<Gender>(Gender.OTHER)
   const [formRole, setFormRole] = React.useState<UserRole>(UserRole.STUDENT)
   const [formStatus, setFormStatus] = React.useState<UserStatus>(UserStatus.ACTIVE)
   const [formDOB, setFormDOB] = React.useState('')
 
+  // Validation Error States
+  const [errors, setErrors] = React.useState<Record<string, boolean>>({})
+
+  // Real-time Username Check States
+  const [usernameAvailable, setUsernameAvailable] = React.useState<boolean | null>(null)
+  const [checkingUsername, setCheckingUsername] = React.useState(false)
+
   // Status Change Menu State
   const [statusAnchorEl, setStatusAnchorEl] = React.useState<null | HTMLElement>(null)
   const [activeMenuUser, setActiveMenuUser] = React.useState<User | null>(null)
 
+  // Pagination State (Client-side display wrapper; queries sent to backend API parameters)
+  const [page, setPage] = React.useState(0)
+  const [rowsPerPage, setRowsPerPage] = React.useState(5)
+  const [totalCount, setTotalCount] = React.useState(0)
+
+  // Fetch users with pagination request parameters
   const fetchUsers = async () => {
+    setPageLoading(true)
     try {
-      const response = await api.get('/users')
-      if (response.data && response.data.length > 0) {
-        setUsers(response.data)
-      } else {
-        setUsers(MOCK_USERS)
+      const response = await api.get('/users', {
+        params: {
+          page: page + 1, // API expects 1-based indexing
+          pageSize: rowsPerPage,
+        },
+      })
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          setUsers(response.data)
+          setTotalCount(response.data.length)
+        } else if (response.data.items) {
+          setUsers(response.data.items)
+          setTotalCount(response.data.totalCount || response.data.items.length)
+        }
       }
     } catch {
-      // Offline or local fallback
-      setUsers(MOCK_USERS)
+      // Catch silently or fallback to mock list if offline
+      setUsers([])
+      setTotalCount(0)
+    } finally {
+      setPageLoading(false)
     }
   }
 
   React.useEffect(() => {
     fetchUsers()
-  }, [])
+  }, [page, rowsPerPage])
+
+  // Debounced real-time username availability check (3 seconds / 3000ms delay)
+  React.useEffect(() => {
+    if (!formUsername.trim()) {
+      setUsernameAvailable(null)
+      setCheckingUsername(false)
+      return
+    }
+
+    // In edit mode, if username is unchanged, resolve immediately as available
+    if (editingUser && formUsername.trim().toLowerCase() === editingUser.username?.toLowerCase()) {
+      setUsernameAvailable(true)
+      setCheckingUsername(false)
+      return
+    }
+
+    setCheckingUsername(true)
+    setUsernameAvailable(null)
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.get('/users/username-available', {
+          params: { username: formUsername.trim() },
+        })
+        setUsernameAvailable(response.data.available)
+      } catch {
+        // Fallback: Check clash against local user array when API is offline
+        const existsLocally = users.some(
+          (u) =>
+            (!editingUser || u.id !== editingUser.id) &&
+            u.username.toLowerCase() === formUsername.trim().toLowerCase()
+        )
+        setUsernameAvailable(!existsLocally)
+      } finally {
+        setCheckingUsername(false)
+      }
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [formUsername, editingUser])
 
   // Safely format date of birth values
   const formatDateOfBirth = (dob: any) => {
@@ -164,6 +168,18 @@ export default function UsersPage() {
     }
   }
 
+  // Format dynamic roles display
+  const formatRoleLabel = (role: UserRole) => {
+    if (role === UserRole.SUPER_ADMIN) return 'Super Admin'
+    if (role === UserRole.ADMIN) return 'Admin'
+    if (role === UserRole.TEACHER) return 'Teacher'
+    if (role === UserRole.STUDENT) return 'Student'
+    if (role === UserRole.PARENT) return 'Parent'
+    if (role === UserRole.FINANCE) return 'Finance'
+    if (role === UserRole.NON_TEACHING_STAFF) return 'Non-Teaching Staff'
+    return 'User'
+  }
+
   // Handle opening Drawer in Add mode
   const handleOpenAddDrawer = () => {
     setEditingUser(null)
@@ -171,10 +187,14 @@ export default function UsersPage() {
     setFormLastName('')
     setFormUsername('')
     setFormEmail('')
-    setFormGender('Male')
+    setFormPassword('')
+    setFormConfirmPassword('')
+    setFormGender(Gender.OTHER)
     setFormRole(UserRole.STUDENT)
     setFormStatus(UserStatus.ACTIVE)
     setFormDOB('')
+    setErrors({})
+    setUsernameAvailable(null)
     setDrawerOpen(true)
   }
 
@@ -182,73 +202,161 @@ export default function UsersPage() {
   const handleOpenEditDrawer = (user: User) => {
     setEditingUser(user)
     setFormFirstName(user.firstName)
-    setFormLastName(user.lastName)
+    setFormLastName(user.lastName || '')
     setFormUsername(user.username || '')
     setFormEmail(user.email)
+    setFormPassword('')
+    setFormConfirmPassword('')
     setFormGender(user.gender || Gender.OTHER)
     setFormRole(user.role)
     setFormStatus(user.status)
     setFormDOB(formatDateForInput(user.dateOfBirth))
+    setErrors({})
+    setUsernameAvailable(true) // Assumed valid initially
     setDrawerOpen(true)
   }
 
+  // Handle input changes with immediate error clearance
+  const handleFirstNameChange = (val: string) => {
+    setFormFirstName(val)
+    if (val.trim()) {
+      setErrors((prev) => ({ ...prev, firstName: false }))
+    }
+  }
+
+  const handleUsernameChange = (val: string) => {
+    setFormUsername(val)
+    if (val.trim()) {
+      setErrors((prev) => ({ ...prev, username: false }))
+    }
+  }
+
+  const handleEmailChange = (val: string) => {
+    setFormEmail(val)
+    if (val.trim()) {
+      setErrors((prev) => ({ ...prev, email: false }))
+    }
+  }
+
+  const handlePasswordChange = (val: string) => {
+    setFormPassword(val)
+    if (val.trim()) {
+      setErrors((prev) => ({ ...prev, password: false }))
+    }
+  }
+
+  const handleConfirmPasswordChange = (val: string) => {
+    setFormConfirmPassword(val)
+    if (val.trim() && val === formPassword) {
+      setErrors((prev) => ({ ...prev, confirmPassword: false }))
+    }
+  }
+
+  const handleDOBChange = (val: string) => {
+    setFormDOB(val)
+    if (val) {
+      setErrors((prev) => ({ ...prev, dateOfBirth: false }))
+    }
+  }
+
   // Handle saving the user record
-  const handleSaveUser = (e: React.FormEvent) => {
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formFirstName.trim() || !formLastName.trim() || !formUsername.trim() || !formEmail.trim() || !formDOB) {
-      notify.warning('Please fill in all mandatory fields.')
+    const isAddMode = !editingUser
+
+    // Validate (LastName is NOT required)
+    const newErrors = {
+      firstName: !formFirstName.trim(),
+      username: !formUsername.trim() || usernameAvailable === false,
+      email: !formEmail.trim(),
+      dateOfBirth: !formDOB,
+      password: isAddMode ? !formPassword.trim() : false,
+      confirmPassword: isAddMode ? (!formConfirmPassword.trim() || formConfirmPassword !== formPassword) : false,
+    }
+
+    setErrors(newErrors)
+
+    const hasErrors = Object.values(newErrors).some((v) => v)
+    if (hasErrors) {
+      notify.warning('Please correct all validation errors before saving.')
       return
     }
 
     const birthDate = new Date(formDOB)
     if (isNaN(birthDate.getTime())) {
+      setErrors((prev) => ({ ...prev, dateOfBirth: true }))
       notify.warning('Please enter a valid Date of Birth.')
       return
     }
 
-    if (editingUser) {
-      // Update record in state
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id
-            ? {
-                ...u,
-                firstName: formFirstName.trim(),
-                lastName: formLastName.trim(),
-                username: formUsername.trim(),
-                email: formEmail.trim(),
-                gender: formGender,
-                role: formRole,
-                status: formStatus,
-                dateOfBirth: birthDate,
-              }
-            : u
-        )
-      )
-      notify.success(`User profile for ${formFirstName} ${formLastName} has been updated.`)
-    } else {
-      // Create new record
-      const newId = `USR-${Math.floor(100 + Math.random() * 900)}`
-      const newUser: User = {
-        id: newId,
-        schoolId: 'school-1',
-        username: formUsername.trim(),
-        email: formEmail.trim(),
-        firstName: formFirstName.trim(),
-        lastName: formLastName.trim(),
-        dateOfBirth: birthDate,
-        gender: formGender,
-        refreshToken: '',
-        refreshTokenExpiry: new Date(),
-        role: formRole,
-        status: formStatus,
-      }
-      setUsers((prev) => [...prev, newUser])
-      notify.success(`User account for ${formFirstName} ${formLastName} has been created.`)
-    }
+    setSaveLoading(true)
 
-    setDrawerOpen(false)
+    if (editingUser) {
+      // Edit User Action
+      try {
+        // Assume API endpoint PUT `/users/{id}` handles updates
+        const updatedPayload = {
+          firstName: formFirstName.trim(),
+          lastName: formLastName.trim(),
+          username: formUsername.trim(),
+          email: formEmail.trim(),
+          gender: formGender,
+          role: formRole,
+          status: formStatus,
+          dateOfBirth: birthDate,
+        }
+        await api.put(`/users/${editingUser.id}`, updatedPayload)
+        notify.success(`User profile for ${formFirstName} has been updated.`)
+        fetchUsers()
+        setDrawerOpen(false)
+      } catch {
+        // Local state update fallback
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id
+              ? {
+                  ...u,
+                  firstName: formFirstName.trim(),
+                  lastName: formLastName.trim(),
+                  username: formUsername.trim(),
+                  email: formEmail.trim(),
+                  gender: formGender,
+                  role: formRole,
+                  status: formStatus,
+                  dateOfBirth: birthDate,
+                }
+              : u
+          )
+        )
+        notify.success(`User profile updated locally.`)
+        setDrawerOpen(false)
+      } finally {
+        setSaveLoading(false)
+      }
+    } else {
+      // Create User Action (Post to `/api/auth/register` to save new user)
+      try {
+        const registrationPayload = {
+          username: formUsername.trim(),
+          email: formEmail.trim(),
+          firstName: formFirstName.trim(),
+          lastName: formLastName.trim(),
+          dateOfBirth: formDOB, // C# DateOnly expected format yyyy-MM-dd
+          role: formRole,
+          password: formPassword,
+          confirmPassword: formConfirmPassword,
+        }
+        await api.post('/auth/register', registrationPayload)
+        
+        notify.success(`User account for ${formFirstName} registered successfully.`)
+        fetchUsers()
+        setDrawerOpen(false)
+      } catch {
+      } finally {
+        setSaveLoading(false)
+      }
+    }
   }
 
   // Handle status context menu trigger
@@ -263,19 +371,54 @@ export default function UsersPage() {
   }
 
   // Handle changing user status from context menu
-  const handleSelectStatus = (newStatus: UserStatus) => {
-    if (activeMenuUser) {
+  const handleSelectStatus = async (newStatus: UserStatus) => {
+    if (!activeMenuUser) return
+    setSaveLoading(true)
+    try {
+      // Call status update endpoint if exists, e.g. PATCH /users/{id}/status
+      await api.patch(`/users/${activeMenuUser.id}/status`, { status: newStatus })
+      notify.success(`Status for ${activeMenuUser.firstName} changed to ${newStatus}.`)
+      fetchUsers()
+    } catch {
       setUsers((prev) =>
         prev.map((u) => (u.id === activeMenuUser.id ? { ...u, status: newStatus } : u))
       )
-      notify.success(`Status for ${activeMenuUser.firstName} changed to ${newStatus}.`)
+      notify.success(`Status updated locally (Backend API offline).`)
+    } finally {
+      setSaveLoading(false)
+      handleCloseStatusMenu()
     }
-    handleCloseStatusMenu()
   }
+
+  // Pagination event handlers
+  const handleChangePage = (_e: unknown, newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10))
+    setPage(0)
+  }
+
+  // Sliced user list for client-side rendering display fallback
+  const displayedUsers = users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
     <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
       
+      {/* Full screen Backdrop Loader for Saving operations */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 999 }}
+        open={saveLoading}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress color="inherit" />
+          <Typography variant="h6" sx={{ mt: 2, fontWeight: 700 }}>
+            Saving user account...
+          </Typography>
+        </Box>
+      </Backdrop>
+
       {/* Top Header Flex with Add Button */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Box sx={{ textAlign: 'left' }}>
@@ -308,7 +451,7 @@ export default function UsersPage() {
         </Button>
       </Box>
 
-      {/* Metrics Cards (Keep static dummy parameters as instructed) */}
+      {/* Metrics Cards (Keep static dummy metrics) */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 3 }}>
           <Card sx={{ p: 3, textAlign: 'center' }}>
@@ -354,7 +497,7 @@ export default function UsersPage() {
 
       {/* Roster Card wrapper */}
       <Card sx={{ overflow: 'hidden' }}>
-        {/* Tab Filter Chips (Keep static as instructed) */}
+        {/* Tab Filter Chips (Keep static chips) */}
         <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', gap: 1 }}>
           <Chip label="All Users" color="primary" variant="filled" sx={{ borderRadius: '8px' }} />
           <Chip label="Staff" variant="outlined" sx={{ borderRadius: '8px' }} />
@@ -365,7 +508,7 @@ export default function UsersPage() {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                {/* Fixed column header at the left */}
+                {/* Fixed column Actions header */}
                 <TableCell
                   sx={{
                     fontWeight: 700,
@@ -391,62 +534,112 @@ export default function UsersPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.map((row) => (
-                <TableRow key={row.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                  {/* Fixed column cells on the left */}
-                  <TableCell
-                    sx={{
-                      position: 'sticky',
-                      left: 0,
-                      bgcolor: 'background.paper',
-                      zIndex: 2,
-                      boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
-                      width: 100,
-                      minWidth: 100,
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Tooltip title="Edit User">
-                        <IconButton size="small" onClick={() => handleOpenEditDrawer(row)}>
-                          <EditIcon fontSize="small" sx={{ color: 'primary.main' }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Change Status">
-                        <IconButton size="small" onClick={(e) => handleOpenStatusMenu(e, row)}>
-                          <ToggleOnIcon fontSize="small" sx={{ color: 'success.main' }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                  
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.firstName}</TableCell>
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.lastName}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary' }}>{row.username || row.email.split('@')[0]}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary' }}>{row.email}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary' }}>{row.gender}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary' }}>{formatDateOfBirth(row.dateOfBirth)}</TableCell>
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 500 }}>{row.role}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={row.status}
-                      size="small"
-                      color={
-                        row.status === UserStatus.ACTIVE
-                          ? 'success'
-                          : row.status === UserStatus.SUSPENDED
-                          ? 'error'
-                          : row.status === UserStatus.INACTIVE
-                          ? 'warning'
-                          : 'default'
-                      }
-                      sx={{ borderRadius: '8px', fontWeight: 700 }}
-                    />
+              {pageLoading ? (
+                // Skeleton loading state
+                Array.from(new Array(rowsPerPage)).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell
+                      sx={{
+                        position: 'sticky',
+                        left: 0,
+                        bgcolor: 'background.paper',
+                        zIndex: 2,
+                        boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                        width: 100,
+                        minWidth: 100,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Skeleton variant="circular" width={28} height={28} />
+                        <Skeleton variant="circular" width={28} height={28} />
+                      </Box>
+                    </TableCell>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={110} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={160} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={60} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell><Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '6px' }} /></TableCell>
+                  </TableRow>
+                ))
+              ) : displayedUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    No user accounts present. Click "Add User" to create one.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                displayedUsers.map((row) => (
+                  <TableRow key={row.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    {/* Sticky left Actions body cell */}
+                    <TableCell
+                      sx={{
+                        position: 'sticky',
+                        left: 0,
+                        bgcolor: 'background.paper',
+                        zIndex: 2,
+                        boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                        width: 100,
+                        minWidth: 100,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Edit User">
+                          <IconButton size="small" onClick={() => handleOpenEditDrawer(row)}>
+                            <EditIcon fontSize="small" sx={{ color: 'primary.main' }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Change Status">
+                          <IconButton size="small" onClick={(e) => handleOpenStatusMenu(e, row)}>
+                            <ToggleOnIcon fontSize="small" sx={{ color: 'success.main' }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                    
+                    <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.firstName}</TableCell>
+                    <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.lastName || '—'}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.username || row.email.split('@')[0]}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.email}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.gender}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{formatDateOfBirth(row.dateOfBirth)}</TableCell>
+                    <TableCell sx={{ color: 'text.primary', fontWeight: 500 }}>{formatRoleLabel(row.role)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.status}
+                        size="small"
+                        color={
+                          row.status === UserStatus.ACTIVE
+                            ? 'success'
+                            : row.status === UserStatus.SUSPENDED
+                            ? 'error'
+                            : row.status === UserStatus.INACTIVE
+                            ? 'warning'
+                            : 'default'
+                        }
+                        sx={{ borderRadius: '8px', fontWeight: 700 }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* MUI Table Roster Pagination */}
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          component="div"
+          count={totalCount}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </Card>
 
       {/* Slide-out Sidebar Drawer Form (Add/Edit Form) */}
@@ -467,7 +660,7 @@ export default function UsersPage() {
           },
         }}
       >
-        <Box>
+        <Box sx={{ overflowY: 'auto', pr: 1 }}>
           {/* Drawer Top Header Row */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', textAlign: 'left' }}>
@@ -488,16 +681,18 @@ export default function UsersPage() {
                 fullWidth
                 placeholder="e.g. Sarah"
                 value={formFirstName}
-                onChange={(e) => setFormFirstName(e.target.value)}
+                onChange={(e) => handleFirstNameChange(e.target.value)}
+                error={!!errors.firstName}
+                helperText={errors.firstName ? 'First name is required.' : ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
 
-            {/* Last Name */}
+            {/* Last Name (NOT required) */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Last Name *
+                Last Name
               </Typography>
               <TextField
                 fullWidth
@@ -509,7 +704,7 @@ export default function UsersPage() {
               />
             </Box>
 
-            {/* Username */}
+            {/* Username with real-time 3-second debounce check */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
                 Username *
@@ -518,7 +713,32 @@ export default function UsersPage() {
                 fullWidth
                 placeholder="e.g. sarah.jenkins"
                 value={formUsername}
-                onChange={(e) => setFormUsername(e.target.value)}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+                error={!!errors.username || usernameAvailable === false}
+                helperText={
+                  errors.username
+                    ? 'Username is required.'
+                    : checkingUsername
+                    ? 'Checking availability...'
+                    : usernameAvailable === true
+                    ? 'Username is available!'
+                    : usernameAvailable === false
+                    ? 'Username is already taken.'
+                    : ''
+                }
+                slotProps={{
+                  formHelperText: {
+                    sx: {
+                      color:
+                        usernameAvailable === true
+                          ? 'success.main'
+                          : errors.username || usernameAvailable === false
+                          ? 'error.main'
+                          : 'text.secondary',
+                      fontWeight: 600,
+                    },
+                  },
+                }}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
@@ -534,11 +754,59 @@ export default function UsersPage() {
                 type="email"
                 placeholder="e.g. sarah.j@vidyartha.edu"
                 value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
+                onChange={(e) => handleEmailChange(e.target.value)}
+                error={!!errors.email}
+                helperText={errors.email ? 'Email address is required.' : ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
+
+            {/* Password inputs - rendered in Add mode only */}
+            {!editingUser && (
+              <>
+                {/* Password */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                    Password *
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="password"
+                    placeholder="Min 8 characters"
+                    value={formPassword}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
+                    error={!!errors.password}
+                    helperText={errors.password ? 'Password is required.' : ''}
+                    variant="outlined"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  />
+                </Box>
+                {/* Confirm Password */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                    Confirm Password *
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="password"
+                    placeholder="Re-enter password"
+                    value={formConfirmPassword}
+                    onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                    error={!!errors.confirmPassword}
+                    helperText={
+                      errors.confirmPassword
+                        ? formConfirmPassword !== formPassword
+                          ? 'Passwords do not match.'
+                          : 'Confirm password is required.'
+                        : ''
+                    }
+                    variant="outlined"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  />
+                </Box>
+              </>
+            )}
 
             {/* Gender Selection */}
             <Box sx={{ mb: 2.5 }}>
@@ -548,13 +816,13 @@ export default function UsersPage() {
               <Select
                 fullWidth
                 value={formGender}
-                onChange={(e) => setFormGender(e.target.value)}
+                onChange={(e) => setFormGender(e.target.value as Gender)}
                 variant="outlined"
                 sx={{ borderRadius: '8px', textAlign: 'left' }}
               >
-                <MenuItem value="Male">Male</MenuItem>
-                <MenuItem value="Female">Female</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
+                <MenuItem value={Gender.MALE}>Male</MenuItem>
+                <MenuItem value={Gender.FEMALE}>Female</MenuItem>
+                <MenuItem value={Gender.OTHER}>Other</MenuItem>
               </Select>
             </Box>
 
@@ -567,7 +835,9 @@ export default function UsersPage() {
                 fullWidth
                 type="date"
                 value={formDOB}
-                onChange={(e) => setFormDOB(e.target.value)}
+                onChange={(e) => handleDOBChange(e.target.value)}
+                error={!!errors.dateOfBirth}
+                helperText={errors.dateOfBirth ? 'Date of birth is required.' : ''}
                 variant="outlined"
                 slotProps={{ inputLabel: { shrink: true } }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -586,9 +856,13 @@ export default function UsersPage() {
                 variant="outlined"
                 sx={{ borderRadius: '8px', textAlign: 'left' }}
               >
+                <MenuItem value={UserRole.SUPER_ADMIN}>Super Admin</MenuItem>
                 <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
                 <MenuItem value={UserRole.TEACHER}>Teacher</MenuItem>
                 <MenuItem value={UserRole.STUDENT}>Student</MenuItem>
+                <MenuItem value={UserRole.PARENT}>Parent</MenuItem>
+                <MenuItem value={UserRole.FINANCE}>Finance</MenuItem>
+                <MenuItem value={UserRole.NON_TEACHING_STAFF}>Non-Teaching Staff</MenuItem>
               </Select>
             </Box>
 
@@ -651,7 +925,7 @@ export default function UsersPage() {
         </Box>
       </Drawer>
 
-      {/* Change Status Popover Menu */}
+      {/* Change Status Popover Menu (Hides current status from user options) */}
       <Menu
         anchorEl={statusAnchorEl}
         open={Boolean(statusAnchorEl)}
@@ -667,15 +941,21 @@ export default function UsersPage() {
           },
         }}
       >
-        <MenuItem onClick={() => handleSelectStatus(UserStatus.ACTIVE)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-          Active
-        </MenuItem>
-        <MenuItem onClick={() => handleSelectStatus(UserStatus.INACTIVE)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-          Inactive
-        </MenuItem>
-        <MenuItem onClick={() => handleSelectStatus(UserStatus.SUSPENDED)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-          Suspended
-        </MenuItem>
+        {activeMenuUser?.status !== UserStatus.ACTIVE && (
+          <MenuItem onClick={() => handleSelectStatus(UserStatus.ACTIVE)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            Active
+          </MenuItem>
+        )}
+        {activeMenuUser?.status !== UserStatus.INACTIVE && (
+          <MenuItem onClick={() => handleSelectStatus(UserStatus.INACTIVE)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            Inactive
+          </MenuItem>
+        )}
+        {activeMenuUser?.status !== UserStatus.SUSPENDED && (
+          <MenuItem onClick={() => handleSelectStatus(UserStatus.SUSPENDED)} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            Suspended
+          </MenuItem>
+        )}
       </Menu>
 
     </Box>

@@ -27,8 +27,33 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    const errorData = error.response?.data as { message?: string } | undefined
-    const errorMessage = errorData?.message || error.message || 'An unexpected connection error occurred.'
+    // Handle structured backend validation errors (single response or array format)
+    const errorData = error.response?.data
+    if (errorData) {
+      const dataArray = Array.isArray(errorData) ? errorData : [errorData]
+      const validationMessages: string[] = []
+
+      for (const item of dataArray) {
+        if (item && Array.isArray(item.errors)) {
+          for (const err of item.errors) {
+            if (err && err.errorMessage) {
+              validationMessages.push(err.errorMessage)
+            }
+          }
+        }
+      }
+
+      if (validationMessages.length > 0) {
+        // Create a single message from the validation errors array
+        const combinedMessage = validationMessages.map((msg) => `• ${msg}`).join('\n')
+        notify.error(combinedMessage)
+        return Promise.reject(error)
+      }
+    }
+
+    // Fallback to generic message parsing
+    const standardErrorData = errorData as { message?: string } | undefined
+    const errorMessage = standardErrorData?.message || error.message || 'An unexpected connection error occurred.'
     notify.error(errorMessage)
 
     return Promise.reject(error)
