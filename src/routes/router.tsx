@@ -31,11 +31,12 @@ export const router = createBrowserRouter([
         element: <MainLayout />, // shared AppBar/nav shell
         children: [
           { path: '/', element: withSuspense(DashboardPage), handle: { title: 'School Analytics Dashboard' } },
-{ path: '/students', element: withSuspense(StudentDirectoryPage), handle: { title: 'Student Directory' } },
-{ path: '/students/attendance', element: withSuspense(AttendancePage), handle: { title: 'Daily Attendance Log' } },
-{ path: '/school', element: withSuspense(SchoolPage), handle: { title: 'School Settings' } },
-{ path: '/learn-hub', element: withSuspense(LearnHubPage), handle: { title: 'Learn Hub Modules' } },
-{ path: '/finance', element: withSuspense(FinancePage), handle: { title: 'Finance Registry' } },
+          { path: '/students', element: withSuspense(StudentDirectoryPage), handle: { title: 'Student Directory' } },
+          { path: '/students/attendance', element: withSuspense(AttendancePage), handle: { title: 'Daily Attendance Log' } },
+          { path: '/school', element: withSuspense(SchoolPage), handle: { title: 'School Settings' } },
+          { path: '/learn-hub', element: withSuspense(LearnHubPage), handle: { title: 'Learn Hub Modules' } },
+          { path: '/finance', element: withSuspense(FinancePage), handle: { title: 'Finance Registry' } },
+          { path: '/users', element: withSuspense(UsersPage), handle: { title: 'Users' } },
         ],
       },
     ],

@@ -28,6 +28,7 @@ export function isGroup(item: NavItem): item is NavGroup {
 
 export const navConfig: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: DashboardIcon },
+  { label: 'Users', path: '/users', icon: PeopleIcon },
   {
     label: 'Students',
     icon: PeopleIcon,
