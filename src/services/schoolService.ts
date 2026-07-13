@@ -16,7 +16,7 @@ export const schoolsService = {
   },
 
   updateSchool: async (id: string, payload: Omit<SchoolItem, 'id'>) => {
-    const response = await axiosClient.put(`/schools/${id}`, payload)
+    const response = await axiosClient.put(`/school/${id}`, payload)
     return response.data
   },
 }
