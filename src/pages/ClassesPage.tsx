@@ -24,7 +24,8 @@ import TablePagination from '@mui/material/TablePagination'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
-import { classesService, type ClassItem } from '../services/apiService'
+import { classesService } from '../services/classService'
+import type { ClassItem } from '../types/class.type'
 import { notify } from '../store/notification.store'
 
 const MOCK_CLASSES: ClassItem[] = [

@@ -25,28 +25,26 @@ import TablePagination from '@mui/material/TablePagination'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
-import { subjectsService } from '../services/subjectService'
-import type { SubjectItem } from '../types/subject.type'
+import { schoolsService } from '../services/schoolService'
+import type { SchoolItem } from '../types/school.type'
 import { notify } from '../store/notification.store'
 
-const MOCK_SUBJECTS: SubjectItem[] = [
-  { id: 'SUB-401', name: 'Mathematics', code: 'MATH101', type: 'Both' },
-  { id: 'SUB-402', name: 'Physics', code: 'PHYS101', type: 'Both' },
-  { id: 'SUB-403', name: 'English Literature', code: 'ENGL102', type: 'Theory' },
-]
-
-export default function SubjectsPage() {
-  const [subjects, setSubjects] = useState<SubjectItem[]>([])
+export default function SchoolsPage() {
+  const [schools, setSchools] = useState<SchoolItem[]>([])
   const [pageLoading, setPageLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
 
   // Drawer Form States
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(null)
+  const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null)
 
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
-  const [type, setType] = useState<'Theory' | 'Practical' | 'Both'>('Both')
+  const [address, setAddress] = useState('')
+  const [primaryContact, setPrimaryContact] = useState<string>('')
+  const [secondaryContact, setSecondaryContact] = useState<string>('')
+  const [email, setEmail] = useState('')
+  const [tagLine, setTagLine] = useState('')
+  const [status, setStatus] = useState<number>(1)
 
   // Validation Error States
   const [errors, setErrors] = useState<Record<string, boolean>>({})
@@ -56,47 +54,52 @@ export default function SubjectsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(5)
   const [totalCount, setTotalCount] = useState(0)
 
-  const fetchSubjects = async () => {
+  const fetchSchools = async () => {
     setPageLoading(true)
     try {
-      const data = await subjectsService.getSubjects(page + 1, rowsPerPage)
+      const data = await schoolsService.getSchools(page + 1, rowsPerPage)
       if (data) {
         if (Array.isArray(data)) {
-          setSubjects(data)
+          setSchools(data)
           setTotalCount(data.length)
         } else if (data.items) {
-          setSubjects(data.items)
+          setSchools(data.items)
           setTotalCount(data.totalCount || data.items.length)
         }
       }
     } catch {
-      // Offline fallback
-      setSubjects(MOCK_SUBJECTS)
-      setTotalCount(MOCK_SUBJECTS.length)
     } finally {
       setPageLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchSubjects()
+    fetchSchools()
   }, [page, rowsPerPage])
 
   // Open drawers in Add / Edit configurations
   const handleOpenAddDrawer = () => {
-    setEditingSubject(null)
+    setEditingSchool(null)
     setName('')
-    setCode('')
-    setType('Both')
+    setAddress('')
+    setPrimaryContact('')
+    setSecondaryContact('')
+    setEmail('')
+    setTagLine('')
+    setStatus(1)
     setErrors({})
     setDrawerOpen(true)
   }
 
-  const handleOpenEditDrawer = (sub: SubjectItem) => {
-    setEditingSubject(sub)
-    setName(sub.name)
-    setCode(sub.code)
-    setType(sub.type)
+  const handleOpenEditDrawer = (school: SchoolItem) => {
+    setEditingSchool(school)
+    setName(school.name)
+    setAddress(school.address || '')
+    setPrimaryContact(school.primaryContact || '')
+    setSecondaryContact(school.secondaryContact || '')
+    setEmail(school.email || '')
+    setTagLine(school.tagLine || '')
+    setStatus(school.status !== undefined ? school.status : 1)
     setErrors({})
     setDrawerOpen(true)
   }
@@ -106,19 +109,15 @@ export default function SubjectsPage() {
     if (field === 'name') {
       setName(val)
       if (val.trim()) setErrors((prev) => ({ ...prev, name: false }))
-    } else if (field === 'code') {
-      setCode(val)
-      if (val.trim()) setErrors((prev) => ({ ...prev, code: false }))
     }
   }
 
   // Handle Form Submission with validation error state coloring
-  const handleSaveSubject = async (e: FormEvent) => {
+  const handleSaveSchool = async (e: FormEvent) => {
     e.preventDefault()
 
     const newErrors = {
       name: !name.trim(),
-      code: !code.trim(),
     }
 
     setErrors(newErrors)
@@ -132,39 +131,31 @@ export default function SubjectsPage() {
 
     const payload = {
       name: name.trim(),
-      code: code.trim().toUpperCase(),
-      type,
+      address: address.trim() || undefined,
+      primaryContact: primaryContact.trim(),
+      secondaryContact: secondaryContact.trim(),
+      email: email.trim() || undefined,
+      tagLine: tagLine.trim() || undefined,
+      status,
     }
 
     try {
-      if (editingSubject) {
-        await subjectsService.updateSubject(editingSubject.id, payload)
-        notify.success(`Subject ${name} updated successfully.`)
+      if (editingSchool) {
+        await schoolsService.updateSchool(editingSchool.id, payload)
+        notify.success(`School ${name} updated successfully.`)
       } else {
-        await subjectsService.createSubject(payload)
-        notify.success(`Subject ${name} created successfully.`)
+        await schoolsService.createSchool(payload)
+        notify.success(`School ${name} created successfully.`)
       }
-      fetchSubjects()
+      fetchSchools()
       setDrawerOpen(false)
     } catch {
-      // Local state fallback
-      if (editingSubject) {
-        setSubjects((prev) =>
-          prev.map((s) => (s.id === editingSubject.id ? { ...s, ...payload, id: s.id } : s))
-        )
-        notify.success(`Subject updated locally.`)
-      } else {
-        const mockId = `SUB-${Math.floor(100 + Math.random() * 900)}`
-        setSubjects((prev) => [...prev, { ...payload, id: mockId }])
-        notify.success(`Subject created locally (Backend offline).`)
-      }
-      setDrawerOpen(false)
     } finally {
       setSaveLoading(false)
     }
   }
 
-  const displayedSubjects = subjects.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+  const displayedSchools = schools.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
     <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
@@ -177,7 +168,7 @@ export default function SubjectsPage() {
         <Box sx={{ textAlign: 'center' }}>
           <CircularProgress color="inherit" />
           <Typography variant="h6" sx={{ mt: 2, fontWeight: 700 }}>
-            Saving subject profile...
+            Saving school profile...
           </Typography>
         </Box>
       </Backdrop>
@@ -186,10 +177,10 @@ export default function SubjectsPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Box sx={{ textAlign: 'left' }}>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Subjects
+            Schools
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-            Manage the list of educational courses, exam syllabus type, and codes.
+            Manage registered school campus properties, contact lines, and taglines.
           </Typography>
         </Box>
         <Button
@@ -210,7 +201,7 @@ export default function SubjectsPage() {
             },
           }}
         >
-          Add Subject
+          Add School
         </Button>
       </Box>
 
@@ -236,9 +227,12 @@ export default function SubjectsPage() {
                   Action
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Subject Name</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Subject Code</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>School Name</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Tagline</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Primary Contact</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -262,17 +256,20 @@ export default function SubjectsPage() {
                     <TableCell><Skeleton variant="text" width={60} /></TableCell>
                     <TableCell><Skeleton variant="text" width={140} /></TableCell>
                     <TableCell><Skeleton variant="text" width={110} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={160} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={130} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
                     <TableCell><Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '6px' }} /></TableCell>
                   </TableRow>
                 ))
-              ) : displayedSubjects.length === 0 ? (
+              ) : displayedSchools.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                    No subject records found. Click "Add Subject" to create one.
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    No school profiles registered. Click "Add School" to register one.
                   </TableCell>
                 </TableRow>
               ) : (
-                displayedSubjects.map((row) => (
+                displayedSchools.map((row) => (
                   <TableRow key={row.id} hover sx={{ '& td, & th': { borderBottom: '1px solid', borderColor: 'divider' } }}>
                     {/* Fixed Actions Cell */}
                     <TableCell
@@ -286,7 +283,7 @@ export default function SubjectsPage() {
                         minWidth: 90,
                       }}
                     >
-                      <Tooltip title="Edit Subject">
+                      <Tooltip title="Edit School">
                         <IconButton size="small" onClick={() => handleOpenEditDrawer(row)}>
                           <EditIcon fontSize="small" sx={{ color: 'primary.main' }} />
                         </IconButton>
@@ -295,21 +292,18 @@ export default function SubjectsPage() {
 
                     <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>{row.id}</TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.name}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>{row.code}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary', fontStyle: 'italic' }}>{row.tagLine || '—'}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.address || '—'}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.email || '—'}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{row.primaryContact || '—'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={row.type}
+                        label={row.status === 1 ? 'Active' : 'Inactive'}
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          bgcolor:
-                            row.type === 'Theory'
-                              ? 'rgba(139, 92, 246, 0.1)'
-                              : row.type === 'Practical'
-                              ? 'rgba(6, 182, 212, 0.1)'
-                              : 'rgba(16, 185, 129, 0.1)',
-                          color:
-                            row.type === 'Theory' ? '#8B5CF6' : row.type === 'Practical' ? '#06B6D4' : '#10B981',
+                          bgcolor: row.status === 1 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                          color: row.status === 1 ? '#10B981' : '#F43F5E',
                           borderRadius: '6px',
                         }}
                       />
@@ -334,7 +328,7 @@ export default function SubjectsPage() {
         />
       </Card>
 
-      {/* Slide-out Sidebar Drawer Form (Add/Edit Subject Form) */}
+      {/* Slide-out Sidebar Drawer Form (Add/Edit School Form) */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -367,7 +361,7 @@ export default function SubjectsPage() {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', textAlign: 'left' }}>
-            {editingSubject ? 'Edit Subject Details' : 'Add New Subject'}
+            {editingSchool ? 'Edit School Profile' : 'Register New School'}
           </Typography>
           <IconButton onClick={() => setDrawerOpen(false)} size="small" sx={{ color: 'text.primary' }}>
             <CloseIcon />
@@ -376,57 +370,117 @@ export default function SubjectsPage() {
 
         {/* Scrollable Form Box */}
         <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 3.5 }}>
-          <form onSubmit={handleSaveSubject}>
+          <form onSubmit={handleSaveSchool}>
             
-            {/* Subject Name */}
+            {/* School Name */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Subject Name *
+                School Name *
               </Typography>
               <TextField
                 fullWidth
-                placeholder="e.g. Mathematics"
+                placeholder="e.g. Vidyartha Public School"
                 value={name}
                 onChange={(e) => handleFieldChange('name', e.target.value)}
                 error={!!errors.name}
-                helperText={errors.name ? 'Subject name is required.' : ''}
+                helperText={errors.name ? 'School name is required.' : ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
 
-            {/* Subject Code */}
+            {/* Tagline */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Subject Code *
+                Tagline
               </Typography>
               <TextField
                 fullWidth
-                placeholder="e.g. MATH101"
-                value={code}
-                onChange={(e) => handleFieldChange('code', e.target.value)}
-                error={!!errors.code}
-                helperText={errors.code ? 'Subject code is required.' : ''}
+                placeholder="e.g. Nurturing future leaders"
+                value={tagLine}
+                onChange={(e) => setTagLine(e.target.value)}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
 
-            {/* Subject Type */}
+            {/* Address */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Subject Type *
+                Campus Address
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="e.g. 102 Main Street, Tech City"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                variant="outlined"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
+
+            {/* Email */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                Email Address
+              </Typography>
+              <TextField
+                fullWidth
+                type="email"
+                placeholder="e.g. contact@vidyartha.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                variant="outlined"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
+
+            {/* Primary Contact */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                Primary Contact Number
+              </Typography>
+              <TextField
+                fullWidth
+                type="text"
+                placeholder="e.g. 5551234"
+                value={primaryContact}
+                onChange={(e) => setPrimaryContact(e.target.value)}
+                variant="outlined"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
+
+            {/* Secondary Contact */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                Secondary Contact Number
+              </Typography>
+              <TextField
+                fullWidth
+                type="text"
+                placeholder="e.g. 5555678"
+                value={secondaryContact}
+                onChange={(e) => setSecondaryContact(e.target.value)}
+                variant="outlined"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
+
+            {/* Status */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                School Status
               </Typography>
               <Select
                 fullWidth
-                value={type}
-                onChange={(e) => setType(e.target.value as 'Theory' | 'Practical' | 'Both')}
+                value={status}
+                onChange={(e) => setStatus(Number(e.target.value))}
                 variant="outlined"
                 sx={{ borderRadius: '8px', textAlign: 'left' }}
               >
-                <MenuItem value="Theory">Theory Only</MenuItem>
-                <MenuItem value="Practical">Practical Only</MenuItem>
-                <MenuItem value="Both">Both (Theory & Practical)</MenuItem>
+                <MenuItem value={1}>Active</MenuItem>
+                <MenuItem value={0}>Inactive</MenuItem>
               </Select>
             </Box>
           </form>
@@ -465,7 +519,7 @@ export default function SubjectsPage() {
           <Button
             fullWidth
             variant="contained"
-            onClick={handleSaveSubject}
+            onClick={handleSaveSchool}
             sx={{
               py: 1.25,
               borderRadius: '8px',
@@ -478,7 +532,7 @@ export default function SubjectsPage() {
               },
             }}
           >
-            Save Subject
+            Save School
           </Button>
         </Box>
       </Drawer>

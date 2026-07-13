@@ -12,6 +12,7 @@ import AttendanceIcon from '@mui/icons-material/CalendarMonthOutlined'
 import ParentIcon from '@mui/icons-material/FamilyRestroomOutlined'
 import CommIcon from '@mui/icons-material/CampaignOutlined'
 import SettingsIcon from '@mui/icons-material/SettingsOutlined'
+import SchoolIcon from '@mui/icons-material/SchoolOutlined'
 
 interface NavLeaf {
   label: string
@@ -41,6 +42,14 @@ export const navConfig: NavItem[] = [
     path: '/', 
     icon: DashboardIcon,
     color: '#6366F1' // Indigo
+  },
+  {
+    label: 'Schools',
+    icon: SchoolIcon,
+    color: '#F97316', // Orange
+    subItems: [
+      { label: 'Schools', path: '/schools' }
+    ]
   },
   {
     label: 'Students',

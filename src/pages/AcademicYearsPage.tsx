@@ -26,7 +26,8 @@ import { format } from 'date-fns'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
-import { academicYearsService, type AcademicYearItem } from '../services/apiService'
+import { academicYearsService } from '../services/academicYearService'
+import type { AcademicYearItem } from '../types/academicYear.type'
 import { notify } from '../store/notification.store'
 
 const MOCK_YEARS: AcademicYearItem[] = [
