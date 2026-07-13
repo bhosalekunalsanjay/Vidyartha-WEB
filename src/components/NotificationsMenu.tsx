@@ -6,7 +6,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import NotificationsIcon from '@mui/icons-material/NotificationsOutlined'
-import api from '../api/api'
+import api from '../api/axiosClient'
 
 interface InboxNotification {
   id: string

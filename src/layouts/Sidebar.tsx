@@ -69,7 +69,7 @@ function NavRow({
               bgcolor: groupActive ? 'action.selected' : 'transparent',
             }}
           >
-            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 32, color: 'inherit' }}>
+            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 32, color: item.color || 'inherit' }}>
               {Icon && <Icon sx={{ fontSize: 18 }} />}
             </ListItemIcon>
             {!collapsed && (
@@ -131,7 +131,7 @@ function NavRow({
           bgcolor: active ? 'action.selected' : 'transparent',
         }}
       >
-        <ListItemIcon sx={{ minWidth: collapsed ? 0 : 32, color: 'inherit' }}>
+        <ListItemIcon sx={{ minWidth: collapsed ? 0 : 32, color: item.color || 'inherit' }}>
           {Icon && <Icon sx={{ fontSize: 18 }} />}
         </ListItemIcon>
         {!collapsed && (

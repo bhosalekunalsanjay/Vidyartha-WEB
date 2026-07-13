@@ -23,7 +23,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Skeleton from '@mui/material/Skeleton'
 import { format } from 'date-fns'
 import React from 'react'
-import api from '../api/api'
+import { usersService } from '../services/apiService'
 import type { User } from '../types/user.type'
 import { UserStatus } from '../enums/UserStatus'
 import { UserRole } from '../enums/UserRole'
@@ -78,23 +78,18 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setPageLoading(true)
     try {
-      const response = await api.get('/users', {
-        params: {
-          page: page + 1, // API expects 1-based indexing
-          pageSize: rowsPerPage,
-        },
-      })
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          setUsers(response.data)
-          setTotalCount(response.data.length)
-        } else if (response.data.items) {
-          setUsers(response.data.items)
-          setTotalCount(response.data.totalCount || response.data.items.length)
+      const data = await usersService.getUsers(page + 1, rowsPerPage)
+      if (data) {
+        if (Array.isArray(data)) {
+          setUsers(data)
+          setTotalCount(data.length)
+        } else if (data.items) {
+          setUsers(data.items)
+          setTotalCount(data.totalCount || data.items.length)
         }
       }
     } catch {
-      // Catch silently or fallback to mock list if offline
+      // Catch silently or fallback to empty list if offline
       setUsers([])
       setTotalCount(0)
     } finally {
@@ -126,10 +121,8 @@ export default function UsersPage() {
 
     const timer = setTimeout(async () => {
       try {
-        const response = await api.get('/users/username-available', {
-          params: { username: formUsername.trim() },
-        })
-        setUsernameAvailable(response.data.available)
+        const available = await usersService.checkUsernameAvailable(formUsername.trim())
+        setUsernameAvailable(available)
       } catch {
         // Fallback: Check clash against local user array when API is offline
         const existsLocally = users.some(
@@ -295,7 +288,6 @@ export default function UsersPage() {
     if (editingUser) {
       // Edit User Action
       try {
-        // Assume API endpoint PUT `/users/{id}` handles updates
         const updatedPayload = {
           firstName: formFirstName.trim(),
           lastName: formLastName.trim(),
@@ -306,7 +298,7 @@ export default function UsersPage() {
           status: formStatus,
           dateOfBirth: birthDate,
         }
-        await api.put(`/users/${editingUser.id}`, updatedPayload)
+        await usersService.updateUser(editingUser.id, updatedPayload)
         notify.success(`User profile for ${formFirstName} has been updated.`)
         fetchUsers()
         setDrawerOpen(false)
@@ -347,7 +339,7 @@ export default function UsersPage() {
           password: formPassword,
           confirmPassword: formConfirmPassword,
         }
-        await api.post('/auth/register', registrationPayload)
+        await usersService.createUser(registrationPayload)
         
         notify.success(`User account for ${formFirstName} registered successfully.`)
         fetchUsers()
@@ -375,8 +367,7 @@ export default function UsersPage() {
     if (!activeMenuUser) return
     setSaveLoading(true)
     try {
-      // Call status update endpoint if exists, e.g. PATCH /users/{id}/status
-      await api.patch(`/users/${activeMenuUser.id}/status`, { status: newStatus })
+      await usersService.updateUserStatus(activeMenuUser.id, newStatus)
       notify.success(`Status for ${activeMenuUser.firstName} changed to ${newStatus}.`)
       fetchUsers()
     } catch {

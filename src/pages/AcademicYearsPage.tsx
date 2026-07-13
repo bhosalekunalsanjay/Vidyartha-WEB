@@ -26,63 +26,27 @@ import { format } from 'date-fns'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
-import { studentsService, type Student } from '../../../services/apiService'
-import { Gender } from '../../../enums/Gender'
-import { notify } from '../../../store/notification.store'
+import { academicYearsService, type AcademicYearItem } from '../services/apiService'
+import { notify } from '../store/notification.store'
 
-const MOCK_STUDENTS: Student[] = [
-  {
-    id: 'STU-101',
-    firstName: 'Julian',
-    lastName: 'Vance',
-    classId: 'Class 10-A',
-    feesStatus: 'Paid',
-    attendanceStatus: 'Present',
-    gender: Gender.MALE,
-    dateOfBirth: new Date('2010-04-12'),
-    email: 'julian.vance@vidyartha.edu',
-  },
-  {
-    id: 'STU-102',
-    firstName: 'Rebecca',
-    lastName: 'Miller',
-    classId: 'Class 11-B',
-    feesStatus: 'Pending',
-    attendanceStatus: 'Present',
-    gender: Gender.FEMALE,
-    dateOfBirth: new Date('2009-08-30'),
-    email: 'rebecca.miller@vidyartha.edu',
-  },
-  {
-    id: 'STU-103',
-    firstName: 'Thomas',
-    lastName: 'Albern',
-    classId: 'Class 10-B',
-    feesStatus: 'Paid',
-    attendanceStatus: 'Absent',
-    gender: Gender.MALE,
-    dateOfBirth: new Date('2010-02-15'),
-    email: 'thomas.albern@vidyartha.edu',
-  },
+const MOCK_YEARS: AcademicYearItem[] = [
+  { id: 'ACY-501', name: '2026-2027', startDate: new Date('2026-06-01'), endDate: new Date('2027-04-30'), status: 'Active' },
+  { id: 'ACY-502', name: '2027-2028', startDate: new Date('2027-06-01'), endDate: new Date('2028-04-30'), status: 'Inactive' },
 ]
 
-export default function StudentDirectoryPage() {
-  const [students, setStudents] = useState<Student[]>([])
+export default function AcademicYearsPage() {
+  const [years, setYears] = useState<AcademicYearItem[]>([])
   const [pageLoading, setPageLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
 
   // Drawer Form States
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
-  
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [gender, setGender] = useState<Gender>(Gender.OTHER)
-  const [dob, setDob] = useState('')
-  const [classId, setClassId] = useState('Class 10-A')
-  const [feesStatus, setFeesStatus] = useState<'Paid' | 'Pending'>('Paid')
-  const [attendanceStatus, setAttendanceStatus] = useState<'Present' | 'Absent'>('Present')
+  const [editingYear, setEditingYear] = useState<AcademicYearItem | null>(null)
+
+  const [name, setName] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
 
   // Validation Error States
   const [errors, setErrors] = useState<Record<string, boolean>>({})
@@ -92,33 +56,33 @@ export default function StudentDirectoryPage() {
   const [rowsPerPage, setRowsPerPage] = useState(5)
   const [totalCount, setTotalCount] = useState(0)
 
-  const fetchStudents = async () => {
+  const fetchYears = async () => {
     setPageLoading(true)
     try {
-      const data = await studentsService.getStudents(page + 1, rowsPerPage)
+      const data = await academicYearsService.getAcademicYears(page + 1, rowsPerPage)
       if (data) {
         if (Array.isArray(data)) {
-          setStudents(data)
+          setYears(data)
           setTotalCount(data.length)
         } else if (data.items) {
-          setStudents(data.items)
+          setYears(data.items)
           setTotalCount(data.totalCount || data.items.length)
         }
       }
     } catch {
       // Offline fallback
-      setStudents(MOCK_STUDENTS)
-      setTotalCount(MOCK_STUDENTS.length)
+      setYears(MOCK_YEARS)
+      setTotalCount(MOCK_YEARS.length)
     } finally {
       setPageLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchStudents()
+    fetchYears()
   }, [page, rowsPerPage])
 
-  // Format Date for UI and Form Fields
+  // Format Dates for UI / Forms
   const formatDateForUI = (dateVal: any) => {
     try {
       const d = dateVal instanceof Date ? dateVal : new Date(dateVal)
@@ -139,57 +103,49 @@ export default function StudentDirectoryPage() {
     }
   }
 
-  // Opening drawers in Add / Edit configurations
+  // Open drawers in Add / Edit configurations
   const handleOpenAddDrawer = () => {
-    setEditingStudent(null)
-    setFirstName('')
-    setLastName('')
-    setEmail('')
-    setGender(Gender.OTHER)
-    setDob('')
-    setClassId('Class 10-A')
-    setFeesStatus('Paid')
-    setAttendanceStatus('Present')
+    setEditingYear(null)
+    setName('')
+    setStartDate('')
+    setEndDate('')
+    setStatus('Active')
     setErrors({})
     setDrawerOpen(true)
   }
 
-  const handleOpenEditDrawer = (student: Student) => {
-    setEditingStudent(student)
-    setFirstName(student.firstName)
-    setLastName(student.lastName || '')
-    setEmail(student.email)
-    setGender(student.gender || Gender.OTHER)
-    setDob(formatDateForInput(student.dateOfBirth))
-    setClassId(student.classId)
-    setFeesStatus(student.feesStatus)
-    setAttendanceStatus(student.attendanceStatus)
+  const handleOpenEditDrawer = (yr: AcademicYearItem) => {
+    setEditingYear(yr)
+    setName(yr.name)
+    setStartDate(formatDateForInput(yr.startDate))
+    setEndDate(formatDateForInput(yr.endDate))
+    setStatus(yr.status)
     setErrors({})
     setDrawerOpen(true)
   }
 
   // Handle immediate error clearances
   const handleFieldChange = (field: string, val: string) => {
-    if (field === 'firstName') {
-      setFirstName(val)
-      if (val.trim()) setErrors((prev) => ({ ...prev, firstName: false }))
-    } else if (field === 'email') {
-      setEmail(val)
-      if (val.trim()) setErrors((prev) => ({ ...prev, email: false }))
-    } else if (field === 'dob') {
-      setDob(val)
-      if (val) setErrors((prev) => ({ ...prev, dob: false }))
+    if (field === 'name') {
+      setName(val)
+      if (val.trim()) setErrors((prev) => ({ ...prev, name: false }))
+    } else if (field === 'startDate') {
+      setStartDate(val)
+      if (val) setErrors((prev) => ({ ...prev, startDate: false }))
+    } else if (field === 'endDate') {
+      setEndDate(val)
+      if (val) setErrors((prev) => ({ ...prev, endDate: false }))
     }
   }
 
   // Handle Form Submission with validation error state coloring
-  const handleSaveStudent = async (e: FormEvent) => {
+  const handleSaveYear = async (e: FormEvent) => {
     e.preventDefault()
 
     const newErrors = {
-      firstName: !firstName.trim(),
-      email: !email.trim(),
-      dob: !dob,
+      name: !name.trim(),
+      startDate: !startDate,
+      endDate: !endDate,
     }
 
     setErrors(newErrors)
@@ -199,47 +155,49 @@ export default function StudentDirectoryPage() {
       return
     }
 
-    const birthDate = new Date(dob)
-    if (isNaN(birthDate.getTime())) {
-      setErrors((prev) => ({ ...prev, dob: true }))
-      notify.warning('Please enter a valid Date of Birth.')
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      notify.warning('Please enter valid Start and End Dates.')
+      return
+    }
+
+    if (start >= end) {
+      setErrors((prev) => ({ ...prev, startDate: true, endDate: true }))
+      notify.warning('Start Date must be strictly before End Date.')
       return
     }
 
     setSaveLoading(true)
 
     const payload = {
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      gender,
-      dateOfBirth: birthDate,
-      classId,
-      feesStatus,
-      attendanceStatus,
+      name: name.trim(),
+      startDate: start,
+      endDate: end,
+      status,
     }
 
     try {
-      if (editingStudent) {
-        await studentsService.updateStudent(editingStudent.id, payload)
-        notify.success(`Student profile for ${firstName} has been updated.`)
+      if (editingYear) {
+        await academicYearsService.updateAcademicYear(editingYear.id, payload)
+        notify.success(`Academic Year ${name} updated successfully.`)
       } else {
-        await studentsService.createStudent(payload)
-        notify.success(`Student profile for ${firstName} has been created.`)
+        await academicYearsService.createAcademicYear(payload)
+        notify.success(`Academic Year ${name} registered successfully.`)
       }
-      fetchStudents()
+      fetchYears()
       setDrawerOpen(false)
     } catch {
       // Local state fallback
-      if (editingStudent) {
-        setStudents((prev) =>
-          prev.map((s) => (s.id === editingStudent.id ? { ...s, ...payload, id: s.id } : s))
+      if (editingYear) {
+        setYears((prev) =>
+          prev.map((y) => (y.id === editingYear.id ? { ...y, ...payload, id: y.id } : y))
         )
-        notify.success(`Student profile updated locally.`)
+        notify.success(`Academic Year updated locally.`)
       } else {
-        const mockId = `STU-${Math.floor(100 + Math.random() * 900)}`
-        setStudents((prev) => [...prev, { ...payload, id: mockId }])
-        notify.success(`Student registered locally (Backend offline).`)
+        const mockId = `ACY-${Math.floor(100 + Math.random() * 900)}`
+        setYears((prev) => [...prev, { ...payload, id: mockId }])
+        notify.success(`Academic Year registered locally (Backend offline).`)
       }
       setDrawerOpen(false)
     } finally {
@@ -247,7 +205,7 @@ export default function StudentDirectoryPage() {
     }
   }
 
-  const displayedStudents = students.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+  const displayedYears = years.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
     <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
@@ -260,7 +218,7 @@ export default function StudentDirectoryPage() {
         <Box sx={{ textAlign: 'center' }}>
           <CircularProgress color="inherit" />
           <Typography variant="h6" sx={{ mt: 2, fontWeight: 700 }}>
-            Saving student profile...
+            Saving academic calendar...
           </Typography>
         </Box>
       </Backdrop>
@@ -269,10 +227,10 @@ export default function StudentDirectoryPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Box sx={{ textAlign: 'left' }}>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Students
+            Academic Years
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-            Manage student registrations, demographic values, and class allocations.
+            Register academic years, terms, and starting/ending calendar limits.
           </Typography>
         </Box>
         <Button
@@ -293,7 +251,7 @@ export default function StudentDirectoryPage() {
             },
           }}
         >
-          Add Student
+          Add Academic Year
         </Button>
       </Box>
 
@@ -319,13 +277,10 @@ export default function StudentDirectoryPage() {
                   Action
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Class</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Gender</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Date of Birth</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Fees</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Attendance</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Year Title</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Start Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>End Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -348,22 +303,19 @@ export default function StudentDirectoryPage() {
                     </TableCell>
                     <TableCell><Skeleton variant="text" width={60} /></TableCell>
                     <TableCell><Skeleton variant="text" width={110} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={150} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={60} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
-                    <TableCell><Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '6px' }} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={100} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={100} /></TableCell>
                     <TableCell><Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '6px' }} /></TableCell>
                   </TableRow>
                 ))
-              ) : displayedStudents.length === 0 ? (
+              ) : displayedYears.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                    No student records found. Click "Add Student" to create a new profile.
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    No academic years found. Click "Add Academic Year" to create one.
                   </TableCell>
                 </TableRow>
               ) : (
-                displayedStudents.map((row) => (
+                displayedYears.map((row) => (
                   <TableRow key={row.id} hover sx={{ '& td, & th': { borderBottom: '1px solid', borderColor: 'divider' } }}>
                     {/* Fixed Actions Cell */}
                     <TableCell
@@ -377,7 +329,7 @@ export default function StudentDirectoryPage() {
                         minWidth: 90,
                       }}
                     >
-                      <Tooltip title="Edit Student">
+                      <Tooltip title="Edit Academic Year">
                         <IconButton size="small" onClick={() => handleOpenEditDrawer(row)}>
                           <EditIcon fontSize="small" sx={{ color: 'primary.main' }} />
                         </IconButton>
@@ -385,31 +337,17 @@ export default function StudentDirectoryPage() {
                     </TableCell>
 
                     <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>{row.id}</TableCell>
-                    <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.firstName} {row.lastName || ''}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{row.classId}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{row.email}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{row.gender}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{formatDateForUI(row.dateOfBirth)}</TableCell>
+                    <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.name}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{formatDateForUI(row.startDate)}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{formatDateForUI(row.endDate)}</TableCell>
                     <TableCell>
                       <Chip
-                        label={row.feesStatus}
+                        label={row.status}
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          bgcolor: row.feesStatus === 'Paid' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                          color: row.feesStatus === 'Paid' ? '#10B981' : '#F59E0B',
-                          borderRadius: '6px',
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.attendanceStatus}
-                        size="small"
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: row.attendanceStatus === 'Present' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                          color: row.attendanceStatus === 'Present' ? '#10B981' : '#F43F5E',
+                          bgcolor: row.status === 'Active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                          color: row.status === 'Active' ? '#10B981' : '#F43F5E',
                           borderRadius: '6px',
                         }}
                       />
@@ -429,15 +367,12 @@ export default function StudentDirectoryPage() {
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={(_e, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(parseInt(e.target.value, 10))
-            setPage(0)
-          }}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
           sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </Card>
 
-      {/* Slide-out Sidebar Drawer Form (Add/Edit Student Form) */}
+      {/* Slide-out Sidebar Drawer Form (Add/Edit Academic Year Form) */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -470,7 +405,7 @@ export default function StudentDirectoryPage() {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', textAlign: 'left' }}>
-            {editingStudent ? 'Edit Student Profile' : 'Add New Student'}
+            {editingYear ? 'Edit Academic Calendar' : 'Add New Academic Year'}
           </Typography>
           <IconButton onClick={() => setDrawerOpen(false)} size="small" sx={{ color: 'text.primary' }}>
             <CloseIcon />
@@ -479,144 +414,75 @@ export default function StudentDirectoryPage() {
 
         {/* Scrollable Form Box */}
         <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 3.5 }}>
-          <form onSubmit={handleSaveStudent}>
+          <form onSubmit={handleSaveYear}>
             
-            {/* First Name */}
+            {/* Year Name */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                First Name *
+                Year Title *
               </Typography>
               <TextField
                 fullWidth
-                placeholder="e.g. Julian"
-                value={firstName}
-                onChange={(e) => handleFieldChange('firstName', e.target.value)}
-                error={!!errors.firstName}
-                helperText={errors.firstName ? 'First name is required.' : ''}
+                placeholder="e.g. 2026-2027"
+                value={name}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+                error={!!errors.name}
+                helperText={errors.name ? 'Academic Year title is required.' : ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
 
-            {/* Last Name (Optional) */}
+            {/* Start Date */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Last Name
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="e.g. Vance"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                variant="outlined"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-              />
-            </Box>
-
-            {/* Email */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Email Address *
-              </Typography>
-              <TextField
-                fullWidth
-                type="email"
-                placeholder="e.g. julian.vance@vidyartha.edu"
-                value={email}
-                onChange={(e) => handleFieldChange('email', e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email ? 'Email address is required.' : ''}
-                variant="outlined"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-              />
-            </Box>
-
-            {/* Gender */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Gender *
-              </Typography>
-              <Select
-                fullWidth
-                value={gender}
-                onChange={(e) => setGender(e.target.value as Gender)}
-                variant="outlined"
-                sx={{ borderRadius: '8px', textAlign: 'left' }}
-              >
-                <MenuItem value={Gender.MALE}>Male</MenuItem>
-                <MenuItem value={Gender.FEMALE}>Female</MenuItem>
-                <MenuItem value={Gender.OTHER}>Other</MenuItem>
-              </Select>
-            </Box>
-
-            {/* Date of Birth */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Date of Birth *
+                Start Date *
               </Typography>
               <TextField
                 fullWidth
                 type="date"
-                value={dob}
-                onChange={(e) => handleFieldChange('dob', e.target.value)}
-                error={!!errors.dob}
-                helperText={errors.dob ? 'Date of birth is required.' : ''}
+                value={startDate}
+                onChange={(e) => handleFieldChange('startDate', e.target.value)}
+                error={!!errors.startDate}
+                helperText={errors.startDate ? 'Start Date is required.' : ''}
                 variant="outlined"
                 slotProps={{ inputLabel: { shrink: true } }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
             </Box>
 
-            {/* Class Assignment */}
+            {/* End Date */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Class Assignment *
+                End Date *
               </Typography>
-              <Select
+              <TextField
                 fullWidth
-                value={classId}
-                onChange={(e) => setClassId(e.target.value)}
+                type="date"
+                value={endDate}
+                onChange={(e) => handleFieldChange('endDate', e.target.value)}
+                error={!!errors.endDate}
+                helperText={errors.endDate ? 'End Date is required.' : ''}
                 variant="outlined"
-                sx={{ borderRadius: '8px', textAlign: 'left' }}
-              >
-                <MenuItem value="Class 10-A">Class 10-A</MenuItem>
-                <MenuItem value="Class 10-B">Class 10-B</MenuItem>
-                <MenuItem value="Class 11-A">Class 11-A</MenuItem>
-                <MenuItem value="Class 11-B">Class 11-B</MenuItem>
-              </Select>
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
             </Box>
 
-            {/* Fees Status */}
+            {/* Status */}
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Fees Status *
+                Status *
               </Typography>
               <Select
                 fullWidth
-                value={feesStatus}
-                onChange={(e) => setFeesStatus(e.target.value as 'Paid' | 'Pending')}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
                 variant="outlined"
                 sx={{ borderRadius: '8px', textAlign: 'left' }}
               >
-                <MenuItem value="Paid">Paid</MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
-              </Select>
-            </Box>
-
-            {/* Attendance Status */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
-                Attendance Status *
-              </Typography>
-              <Select
-                fullWidth
-                value={attendanceStatus}
-                onChange={(e) => setAttendanceStatus(e.target.value as 'Present' | 'Absent')}
-                variant="outlined"
-                sx={{ borderRadius: '8px', textAlign: 'left' }}
-              >
-                <MenuItem value="Present">Present</MenuItem>
-                <MenuItem value="Absent">Absent</MenuItem>
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="Inactive">Inactive</MenuItem>
               </Select>
             </Box>
           </form>
@@ -655,7 +521,7 @@ export default function StudentDirectoryPage() {
           <Button
             fullWidth
             variant="contained"
-            onClick={handleSaveStudent}
+            onClick={handleSaveYear}
             sx={{
               py: 1.25,
               borderRadius: '8px',
@@ -668,7 +534,7 @@ export default function StudentDirectoryPage() {
               },
             }}
           >
-            Save Student
+            Save Academic Year
           </Button>
         </Box>
       </Drawer>
