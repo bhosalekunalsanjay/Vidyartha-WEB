@@ -54,10 +54,10 @@ export default function SchoolsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(5)
   const [totalCount, setTotalCount] = useState(0)
 
-  const fetchSchools = async () => {
+  const fetchSchools = async (signal?: AbortSignal) => {
     setPageLoading(true)
     try {
-      const data = await schoolsService.getSchools(page + 1, rowsPerPage)
+      const data = await schoolsService.getSchools(page + 1, rowsPerPage, signal)
       if (data) {
         if (Array.isArray(data)) {
           setSchools(data)
@@ -67,14 +67,20 @@ export default function SchoolsPage() {
           setTotalCount(data.totalCount || data.items.length)
         }
       }
-    } catch {
+    } catch (err: any) {
+      // Ignore cancellation errors from AbortController — these are intentional
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.error('Failed to fetch schools:', err)
+      }
     } finally {
       setPageLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchSchools()
+    const controller = new AbortController()
+    fetchSchools(controller.signal)
+    return () => controller.abort() // cancels the in-flight request on unmount / re-render
   }, [page, rowsPerPage])
 
   // Open drawers in Add / Edit configurations

@@ -2,9 +2,10 @@ import axiosClient from '../api/axiosClient'
 import type { SchoolItem } from '../types/school.type'
 
 export const schoolsService = {
-  getSchools: async (page: number, pageSize: number) => {
-    const response = await axiosClient.get('/schools', {
-      params: { page, pageSize },
+  getSchools: async (pageNumber: number, pageSize: number, signal?: AbortSignal) => {
+    const response = await axiosClient.get('/school/', {
+      params: { pageNumber, pageSize },
+      signal,
     })
     return response.data
   },
