@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { Teacher } from '../types/teacher.type'
+import type { Teacher } from '../interfaces/teacher.type'
 
 export const teachersService = {
   getTeachers: async (page: number, pageSize: number) => {

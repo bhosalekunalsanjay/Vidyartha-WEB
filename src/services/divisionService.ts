@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { DivisionItem } from '../types/division.type'
+import type { DivisionItem } from '../interfaces/division.type'
 
 export const divisionsService = {
   getDivisions: async (page: number, pageSize: number) => {

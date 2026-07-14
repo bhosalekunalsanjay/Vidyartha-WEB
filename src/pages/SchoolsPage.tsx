@@ -26,7 +26,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { schoolsService } from '../services/schoolService'
-import type { SchoolItem } from '../types/school.type'
+import type { SchoolItem } from '../interfaces/school.type'
 import { notify } from '../store/notification.store'
 
 export default function SchoolsPage() {

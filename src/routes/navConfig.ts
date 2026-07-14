@@ -13,6 +13,7 @@ import ParentIcon from '@mui/icons-material/FamilyRestroomOutlined'
 import CommIcon from '@mui/icons-material/CampaignOutlined'
 import SettingsIcon from '@mui/icons-material/SettingsOutlined'
 import SchoolIcon from '@mui/icons-material/SchoolOutlined'
+import StaffIcon from '@mui/icons-material/BadgeOutlined'
 
 interface NavLeaf {
   label: string
@@ -67,6 +68,14 @@ export const navConfig: NavItem[] = [
     subItems: [
       { label: 'All Teachers', path: '/teachers' },
       { label: 'Subject Assignments', path: '/teachers/assignments' },
+    ],
+  },
+  {
+    label: 'Staff',
+    icon: StaffIcon,
+    color: '#A855F7', // Purple
+    subItems: [
+      { label: 'Non-Teaching Staff', path: '/staff' },
     ],
   },
   {

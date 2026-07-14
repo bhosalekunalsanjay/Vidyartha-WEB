@@ -27,7 +27,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { studentsService } from '../../../services/studentService'
-import type { Student } from '../../../types/student.type'
+import type { Student } from '../../../interfaces/student.type'
 import { Gender } from '../../../enums/Gender'
 import { notify } from '../../../store/notification.store'
 

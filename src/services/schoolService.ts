@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { SchoolItem } from '../types/school.type'
+import type { SchoolItem } from '../interfaces/school.type'
 
 export const schoolsService = {
   getSchools: async (pageNumber: number, pageSize: number, signal?: AbortSignal) => {

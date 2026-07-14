@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { SubjectItem } from '../types/subject.type'
+import type { SubjectItem } from '../interfaces/subject.type'
 
 export const subjectsService = {
   getSubjects: async (page: number, pageSize: number) => {

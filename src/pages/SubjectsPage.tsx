@@ -26,7 +26,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { subjectsService } from '../services/subjectService'
-import type { SubjectItem } from '../types/subject.type'
+import type { SubjectItem } from '../interfaces/subject.type'
 import { notify } from '../store/notification.store'
 
 const MOCK_SUBJECTS: SubjectItem[] = [

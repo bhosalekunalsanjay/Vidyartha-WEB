@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { AcademicYearItem } from '../types/academicYear.type'
+import type { AcademicYearItem } from '../interfaces/academicYear.type'
 
 export const academicYearsService = {
   getAcademicYears: async (page: number, pageSize: number) => {

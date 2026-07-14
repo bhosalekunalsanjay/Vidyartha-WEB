@@ -24,7 +24,7 @@ import Skeleton from '@mui/material/Skeleton'
 import { format } from 'date-fns'
 import React from 'react'
 import { usersService } from '../services/userService'
-import type { User } from '../types/user.type'
+import type { User } from '../interfaces/user.type'
 import { UserStatus } from '../enums/UserStatus'
 import { UserRole } from '../enums/UserRole'
 import { Gender } from '../enums/Gender'
@@ -164,7 +164,7 @@ export default function UsersPage() {
   // Format dynamic roles display
   const formatRoleLabel = (role: UserRole) => {
     if (role === UserRole.SUPER_ADMIN) return 'Super Admin'
-    if (role === UserRole.ADMIN) return 'Admin'
+    if (role === UserRole.SCHOOL_ADMIN) return 'School Admin'
     if (role === UserRole.TEACHER) return 'Teacher'
     if (role === UserRole.STUDENT) return 'Student'
     if (role === UserRole.PARENT) return 'Parent'
@@ -848,7 +848,7 @@ export default function UsersPage() {
                 sx={{ borderRadius: '8px', textAlign: 'left' }}
               >
                 <MenuItem value={UserRole.SUPER_ADMIN}>Super Admin</MenuItem>
-                <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+                <MenuItem value={UserRole.SCHOOL_ADMIN}>School Admin</MenuItem>
                 <MenuItem value={UserRole.TEACHER}>Teacher</MenuItem>
                 <MenuItem value={UserRole.STUDENT}>Student</MenuItem>
                 <MenuItem value={UserRole.PARENT}>Parent</MenuItem>

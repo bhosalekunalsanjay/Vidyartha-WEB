@@ -1,5 +1,5 @@
 import axiosClient from '../api/axiosClient'
-import type { ClassItem } from '../types/class.type'
+import type { ClassItem } from '../interfaces/class.type'
 
 export const classesService = {
   getClasses: async (page: number, pageSize: number) => {

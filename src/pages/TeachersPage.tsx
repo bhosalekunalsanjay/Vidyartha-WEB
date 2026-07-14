@@ -26,7 +26,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { teachersService } from '../services/teacherService'
-import type { Teacher } from '../types/teacher.type'
+import type { Teacher } from '../interfaces/teacher.type'
 import { Gender } from '../enums/Gender'
 import { notify } from '../store/notification.store'
 

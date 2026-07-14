@@ -25,7 +25,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { divisionsService } from '../services/divisionService'
-import type { DivisionItem } from '../types/division.type'
+import type { DivisionItem } from '../interfaces/division.type'
 import { notify } from '../store/notification.store'
 
 const MOCK_DIVISIONS: DivisionItem[] = [
