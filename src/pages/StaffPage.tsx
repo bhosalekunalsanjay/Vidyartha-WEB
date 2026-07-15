@@ -39,6 +39,7 @@ import { UserStatus } from '../enums/UserStatus'
 import { useAuth } from '../context/AuthContext'
 import { notify } from '../store/notification.store'
 import { format } from 'date-fns'
+import type { User } from '../interfaces/payloads/user'
 
 export default function StaffPage() {
   const { user: authUser } = useAuth()
@@ -84,7 +85,13 @@ export default function StaffPage() {
   const fetchStaff = async (signal?: AbortSignal) => {
     setPageLoading(true)
     try {
-      const data = await staffService.getStaff(page + 1, rowsPerPage, signal)
+      const payload: User = {
+        pageNumber: page + 1,
+        pageSize: rowsPerPage,
+        role: UserRole.NON_TEACHING_STAFF,
+        schoolId: "1234",
+      }
+      const data = await staffService.getStaff(payload, signal)
       if (data) {
         if (Array.isArray(data)) {
           setStaff(data)

@@ -11,8 +11,6 @@ export interface User {
     lastName: string
     dateOfBirth: Date
     gender: Gender
-    refreshToken: string
-    refreshTokenExpiry: Date
     role: UserRole
     status: UserStatus
 }

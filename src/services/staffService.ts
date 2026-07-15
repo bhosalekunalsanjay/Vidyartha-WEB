@@ -1,5 +1,7 @@
 import axiosClient from '../api/axiosClient'
+import { UserRole } from '../enums/UserRole'
 import type { UserStatus } from '../enums/UserStatus'
+import type { User } from '../interfaces/payloads/user'
 
 export interface StaffPayload {
   firstName: string
@@ -25,9 +27,14 @@ export interface StaffUpdatePayload {
 }
 
 export const staffService = {
-  getStaff: async (pageNumber: number, pageSize: number, signal?: AbortSignal) => {
+  getStaff: async (payload: User, signal?: AbortSignal) => {
     const response = await axiosClient.get('/users', {
-      params: { pageNumber, pageSize, role: 7 }, // NON_TEACHING_STAFF = 7
+      params: { 
+        pageNumber: payload.pageNumber, 
+        pageSize: payload.pageSize, 
+        role: payload.role,
+        schoolId: payload.schoolId 
+      }, // NON_TEACHING_STAFF = 7
       signal,
     })
     return response.data
