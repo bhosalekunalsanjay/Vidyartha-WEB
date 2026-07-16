@@ -1,6 +1,7 @@
 export interface SchoolItem {
   id: string
   name: string
+  subdomain?: string
   address?: string
   primaryContact?: string
   secondaryContact?: string

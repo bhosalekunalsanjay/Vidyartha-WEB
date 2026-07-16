@@ -39,6 +39,7 @@ export default function SchoolsPage() {
   const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null)
 
   const [name, setName] = useState('')
+  const [subdomain, setSubdomain] = useState('')
   const [address, setAddress] = useState('')
   const [primaryContact, setPrimaryContact] = useState<string>('')
   const [secondaryContact, setSecondaryContact] = useState<string>('')
@@ -87,6 +88,7 @@ export default function SchoolsPage() {
   const handleOpenAddDrawer = () => {
     setEditingSchool(null)
     setName('')
+    setSubdomain('')
     setAddress('')
     setPrimaryContact('')
     setSecondaryContact('')
@@ -100,6 +102,7 @@ export default function SchoolsPage() {
   const handleOpenEditDrawer = (school: SchoolItem) => {
     setEditingSchool(school)
     setName(school.name)
+    setSubdomain(school.subdomain || '')
     setAddress(school.address || '')
     setPrimaryContact(school.primaryContact || '')
     setSecondaryContact(school.secondaryContact || '')
@@ -115,6 +118,11 @@ export default function SchoolsPage() {
     if (field === 'name') {
       setName(val)
       if (val.trim()) setErrors((prev) => ({ ...prev, name: false }))
+    } else if (field === 'subdomain') {
+      // Allow only lowercase alphanumeric and hyphens
+      const sanitized = val.toLowerCase().replace(/[^a-z0-9-]/g, '')
+      setSubdomain(sanitized)
+      if (sanitized.trim()) setErrors((prev) => ({ ...prev, subdomain: false }))
     }
   }
 
@@ -122,8 +130,11 @@ export default function SchoolsPage() {
   const handleSaveSchool = async (e: FormEvent) => {
     e.preventDefault()
 
+    const isAdd = !editingSchool
+
     const newErrors = {
       name: !name.trim(),
+      ...(isAdd && { subdomain: !subdomain.trim() }),
     }
 
     setErrors(newErrors)
@@ -137,6 +148,7 @@ export default function SchoolsPage() {
 
     const payload = {
       name: name.trim(),
+      ...(isAdd && { subdomain: subdomain.trim() }),
       address: address.trim() || undefined,
       primaryContact: primaryContact.trim(),
       secondaryContact: secondaryContact.trim(),
@@ -392,6 +404,36 @@ export default function SchoolsPage() {
                 helperText={errors.name ? 'School name is required.' : ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              />
+            </Box>
+
+            {/* Subdomain */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', display: 'block', textAlign: 'left' }}>
+                Subdomain *
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="e.g. vidyartha (only a-z, 0-9, hyphens)"
+                value={subdomain}
+                onChange={(e) => handleFieldChange('subdomain', e.target.value)}
+                error={!!errors.subdomain}
+                helperText={
+                  errors.subdomain
+                    ? 'Subdomain is required.'
+                    : editingSchool
+                    ? 'Subdomain cannot be changed after registration.'
+                    : 'Only lowercase letters, numbers and hyphens allowed.'
+                }
+                variant="outlined"
+                disabled={!!editingSchool}
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                  '& .MuiOutlinedInput-root.Mui-disabled': {
+                    bgcolor: 'action.disabledBackground',
+                    cursor: 'not-allowed',
+                  },
+                }}
               />
             </Box>
 
