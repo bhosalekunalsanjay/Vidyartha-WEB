@@ -76,6 +76,7 @@ export const navConfig: NavItem[] = [
     color: '#A855F7', // Purple
     subItems: [
       { label: 'Non-Teaching Staff', path: '/staff' },
+      { label: 'Admin', path: '/staff/admin' },
     ],
   },
   {

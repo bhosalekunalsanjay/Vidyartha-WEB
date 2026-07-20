@@ -16,6 +16,7 @@ const AcademicYearsPage = lazy(() => import('../pages/AcademicYearsPage.tsx'))
 const UsersPage = lazy(() => import('../pages/UsersPage.tsx'))
 const SchoolsPage = lazy(() => import('../pages/SchoolsPage.tsx'))
 const StaffPage = lazy(() => import('../pages/StaffPage.tsx'))
+const AdminsPage = lazy(() => import('../pages/AdminsPage.tsx'))
 
 const withSuspense = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
   <Suspense fallback={<div>Loading...</div>}>
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
           { path: '/teachers', element: withSuspense(TeachersPage), handle: { title: 'Teachers Directory' } },
           { path: '/schools', element: withSuspense(SchoolsPage), handle: { title: 'Schools Directory' } },
           { path: '/staff', element: withSuspense(StaffPage), handle: { title: 'Non-Teaching Staff' } },
+          { path: '/staff/admin', element: withSuspense(AdminsPage), handle: { title: 'School Administrators' } },
           
           // Academic submenus
           { path: '/academic/classes', element: withSuspense(ClassesPage), handle: { title: 'Classes Management' } },

@@ -14,6 +14,12 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  
+  const schoolId = localStorage.getItem('selectedSchoolId')
+  if (schoolId) {
+    config.headers['X-School-Id'] = schoolId
+  }
+
   return config
 })
 
