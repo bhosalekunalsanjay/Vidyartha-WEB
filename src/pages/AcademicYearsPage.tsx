@@ -20,6 +20,8 @@ import Backdrop from '@mui/material/Backdrop'
 import CircularProgress from '@mui/material/CircularProgress'
 import Skeleton from '@mui/material/Skeleton'
 import TablePagination from '@mui/material/TablePagination'
+import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
 import { format } from 'date-fns'
 
 // Icons & Services
@@ -27,18 +29,25 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { academicYearsService } from '../services/academicYearService'
+import { schoolsService } from '../services/schoolService'
 import type { AcademicYearItem } from '../interfaces/academicYear.type'
+import type { SchoolItem } from '../interfaces/school.type'
+import { useAuth } from '../context/AuthContext'
+import { UserRole } from '../enums/UserRole'
 import { notify } from '../store/notification.store'
 
-const MOCK_YEARS: AcademicYearItem[] = [
-  { id: 'ACY-501', name: '2026-2027', startDate: new Date('2026-06-01'), endDate: new Date('2027-04-30'), status: 'Active' },
-  { id: 'ACY-502', name: '2027-2028', startDate: new Date('2027-06-01'), endDate: new Date('2028-04-30'), status: 'Inactive' },
-]
-
 export default function AcademicYearsPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = true;//user?.role === UserRole.SUPER_ADMIN
+
   const [years, setYears] = useState<AcademicYearItem[]>([])
-  const [pageLoading, setPageLoading] = useState(true)
+  const [pageLoading, setPageLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
+
+  // School drop-down states for Super Admin
+  const [schools, setSchools] = useState<SchoolItem[]>([])
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('')
+  const [schoolsLoading, setSchoolsLoading] = useState(false)
 
   // Drawer Form States
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -50,30 +59,70 @@ export default function AcademicYearsPage() {
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
 
   // Validation Error States
-  const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Pagination States
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(5)
   const [totalCount, setTotalCount] = useState(0)
 
-  const fetchYears = async () => {
-    setPageLoading(true)
+  // Fetch all schools if current user is Super Admin
+  const fetchSchools = async () => {
     try {
-      const data = await academicYearsService.getAcademicYears(page + 1, rowsPerPage)
+      setSchoolsLoading(true)
+      const data = await schoolsService.getSchools(1, 100)
       if (data) {
         if (Array.isArray(data)) {
-          setYears(data)
-          setTotalCount(data.length)
+          setSchools(data)
         } else if (data.items) {
-          setYears(data.items)
-          setTotalCount(data.totalCount || data.items.length)
+          setSchools(data.items)
         }
       }
-    } catch {
-      // Offline fallback
-      setYears(MOCK_YEARS)
-      setTotalCount(MOCK_YEARS.length)
+    } catch (err) {
+      console.error('Failed to load schools:', err)
+      notify.error('Failed to load schools for selection.')
+    } finally {
+      setSchoolsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      fetchSchools()
+    }
+  }, [user])
+
+  const fetchYears = async () => {
+    if (isSuperAdmin && !selectedSchoolId) {
+      setYears([])
+      setTotalCount(0)
+      return
+    }
+
+    setPageLoading(true)
+    try {
+      const data = await academicYearsService.getAcademicYears(
+        page + 1,
+        rowsPerPage,
+        isSuperAdmin ? selectedSchoolId : null
+      )
+      if (data) {
+        if (data.items) {
+          setYears(data.items)
+          setTotalCount(data.totalCount || 0)
+        } else if (Array.isArray(data)) {
+          setYears(data)
+          setTotalCount(data.length)
+        } else {
+          setYears([])
+          setTotalCount(0)
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch academic years:', err)
+      notify.error('Failed to load academic years.')
+      setYears([])
+      setTotalCount(0)
     } finally {
       setPageLoading(false)
     }
@@ -81,7 +130,7 @@ export default function AcademicYearsPage() {
 
   useEffect(() => {
     fetchYears()
-  }, [page, rowsPerPage])
+  }, [page, rowsPerPage, selectedSchoolId])
 
   // Format Dates for UI / Forms
   const formatDateForUI = (dateVal: any) => {
@@ -106,6 +155,10 @@ export default function AcademicYearsPage() {
 
   // Open drawers in Add / Edit configurations
   const handleOpenAddDrawer = () => {
+    if (isSuperAdmin && !selectedSchoolId) {
+      notify.warning('Please select a school first.')
+      return
+    }
     setEditingYear(null)
     setName('')
     setStartDate('')
@@ -129,13 +182,13 @@ export default function AcademicYearsPage() {
   const handleFieldChange = (field: string, val: string) => {
     if (field === 'name') {
       setName(val)
-      if (val.trim()) setErrors((prev) => ({ ...prev, name: false }))
+      if (val.trim()) setErrors((prev) => ({ ...prev, name: '' }))
     } else if (field === 'startDate') {
       setStartDate(val)
-      if (val) setErrors((prev) => ({ ...prev, startDate: false }))
+      if (val) setErrors((prev) => ({ ...prev, startDate: '', endDate: '' }))
     } else if (field === 'endDate') {
       setEndDate(val)
-      if (val) setErrors((prev) => ({ ...prev, endDate: false }))
+      if (val) setErrors((prev) => ({ ...prev, endDate: '', startDate: '' }))
     }
   }
 
@@ -143,29 +196,24 @@ export default function AcademicYearsPage() {
   const handleSaveYear = async (e: FormEvent) => {
     e.preventDefault()
 
-    const newErrors = {
-      name: !name.trim(),
-      startDate: !startDate,
-      endDate: !endDate,
+    const tempErrors: Record<string, string> = {}
+    if (!name.trim()) tempErrors.name = 'Academic Year title is required.'
+    if (!startDate) tempErrors.startDate = 'Start Date is required.'
+    if (!endDate) tempErrors.endDate = 'End Date is required.'
+
+    if (startDate && endDate) {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      if (start >= end) {
+        tempErrors.startDate = 'Start Date must be strictly before End Date.'
+        tempErrors.endDate = 'End Date must be strictly after Start Date.'
+      }
     }
 
-    setErrors(newErrors)
-    const hasErrors = Object.values(newErrors).some((v) => v)
+    setErrors(tempErrors)
+    const hasErrors = Object.keys(tempErrors).length > 0
     if (hasErrors) {
       notify.warning('Please correct all validation errors before saving.')
-      return
-    }
-
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      notify.warning('Please enter valid Start and End Dates.')
-      return
-    }
-
-    if (start >= end) {
-      setErrors((prev) => ({ ...prev, startDate: true, endDate: true }))
-      notify.warning('Start Date must be strictly before End Date.')
       return
     }
 
@@ -173,40 +221,36 @@ export default function AcademicYearsPage() {
 
     const payload = {
       name: name.trim(),
-      startDate: start,
-      endDate: end,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
       status,
     }
 
     try {
       if (editingYear) {
-        await academicYearsService.updateAcademicYear(editingYear.id, payload)
+        await academicYearsService.updateAcademicYear(
+          editingYear.id,
+          payload,
+          isSuperAdmin ? selectedSchoolId : null
+        )
         notify.success(`Academic Year ${name} updated successfully.`)
       } else {
-        await academicYearsService.createAcademicYear(payload)
+        await academicYearsService.createAcademicYear(
+          payload,
+          isSuperAdmin ? selectedSchoolId : null
+        )
         notify.success(`Academic Year ${name} registered successfully.`)
       }
       fetchYears()
       setDrawerOpen(false)
-    } catch {
-      // Local state fallback
-      if (editingYear) {
-        setYears((prev) =>
-          prev.map((y) => (y.id === editingYear.id ? { ...y, ...payload, id: y.id } : y))
-        )
-        notify.success(`Academic Year updated locally.`)
-      } else {
-        const mockId = `ACY-${Math.floor(100 + Math.random() * 900)}`
-        setYears((prev) => [...prev, { ...payload, id: mockId }])
-        notify.success(`Academic Year registered locally (Backend offline).`)
-      }
-      setDrawerOpen(false)
+    } catch (err: any) {
+      console.error('Failed to save academic year:', err)
+      const msg = err.response?.data?.message || 'Failed to save academic year.'
+      notify.error(msg)
     } finally {
       setSaveLoading(false)
     }
   }
-
-  const displayedYears = years.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
     <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
@@ -225,7 +269,7 @@ export default function AcademicYearsPage() {
       </Backdrop>
 
       {/* Header Info */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ textAlign: 'left' }}>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
             Academic Years
@@ -234,26 +278,61 @@ export default function AcademicYearsPage() {
             Register academic years, terms, and starting/ending calendar limits.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleOpenAddDrawer}
-          sx={{
-            py: 1,
-            px: 2.5,
-            borderRadius: '8px',
-            fontWeight: 700,
-            textTransform: 'none',
-            backgroundImage: 'linear-gradient(135deg, #0284C7 0%, #0D9488 100%)',
-            color: '#fff',
-            '&:hover': {
-              backgroundImage: 'linear-gradient(135deg, #0369a1 0%, #0f766e 100%)',
-            },
-          }}
-        >
-          Add Academic Year
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {isSuperAdmin && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 220 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.5, color: 'text.secondary' }}>
+                Select School *
+              </Typography>
+              <Select
+                value={selectedSchoolId}
+                onChange={(e) => {
+                  setSelectedSchoolId(e.target.value)
+                  setPage(0)
+                }}
+                displayEmpty
+                size="small"
+                fullWidth
+                disabled={schoolsLoading}
+                sx={{ borderRadius: '8px', bgcolor: 'background.paper', textAlign: 'left' }}
+              >
+                <MenuItem value="" disabled>
+                  <em>{schoolsLoading ? 'Loading schools...' : 'Select a School'}</em>
+                </MenuItem>
+                {schools.map((school) => (
+                  <MenuItem key={school.id} value={school.id}>
+                    {school.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
+          )}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDrawer}
+            disabled={isSuperAdmin && !selectedSchoolId}
+            sx={{
+              py: 1,
+              px: 2.5,
+              borderRadius: '8px',
+              fontWeight: 700,
+              textTransform: 'none',
+              backgroundImage: isSuperAdmin && !selectedSchoolId 
+                ? 'none' 
+                : 'linear-gradient(135deg, #0284C7 0%, #0D9488 100%)',
+              color: '#fff',
+              '&:hover': {
+                backgroundImage: isSuperAdmin && !selectedSchoolId 
+                  ? 'none' 
+                  : 'linear-gradient(135deg, #0369a1 0%, #0f766e 100%)',
+              },
+            }}
+          >
+            Add Academic Year
+          </Button>
+        </Box>
       </Box>
 
       {/* Table Wrapper Card */}
@@ -309,14 +388,20 @@ export default function AcademicYearsPage() {
                     <TableCell><Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '6px' }} /></TableCell>
                   </TableRow>
                 ))
-              ) : displayedYears.length === 0 ? (
+              ) : isSuperAdmin && !selectedSchoolId ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary', fontWeight: 600 }}>
+                    Please select a school to load and manage academic years.
+                  </TableCell>
+                </TableRow>
+              ) : years.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                     No academic years found. Click "Add Academic Year" to create one.
                   </TableCell>
                 </TableRow>
               ) : (
-                displayedYears.map((row) => (
+                years.map((row) => (
                   <TableRow key={row.id} hover sx={{ '& td, & th': { borderBottom: '1px solid', borderColor: 'divider' } }}>
                     {/* Fixed Actions Cell */}
                     <TableCell
@@ -337,7 +422,9 @@ export default function AcademicYearsPage() {
                       </Tooltip>
                     </TableCell>
 
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>{row.id}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                      {row.id.substring(0, 8)}...
+                    </TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>{row.name}</TableCell>
                     <TableCell sx={{ color: 'text.secondary' }}>{formatDateForUI(row.startDate)}</TableCell>
                     <TableCell sx={{ color: 'text.secondary' }}>{formatDateForUI(row.endDate)}</TableCell>
@@ -428,7 +515,7 @@ export default function AcademicYearsPage() {
                 value={name}
                 onChange={(e) => handleFieldChange('name', e.target.value)}
                 error={!!errors.name}
-                helperText={errors.name ? 'Academic Year title is required.' : ''}
+                helperText={errors.name || ''}
                 variant="outlined"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
               />
@@ -445,7 +532,7 @@ export default function AcademicYearsPage() {
                 value={startDate}
                 onChange={(e) => handleFieldChange('startDate', e.target.value)}
                 error={!!errors.startDate}
-                helperText={errors.startDate ? 'Start Date is required.' : ''}
+                helperText={errors.startDate || ''}
                 variant="outlined"
                 slotProps={{ inputLabel: { shrink: true } }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -463,7 +550,7 @@ export default function AcademicYearsPage() {
                 value={endDate}
                 onChange={(e) => handleFieldChange('endDate', e.target.value)}
                 error={!!errors.endDate}
-                helperText={errors.endDate ? 'End Date is required.' : ''}
+                helperText={errors.endDate || ''}
                 variant="outlined"
                 slotProps={{ inputLabel: { shrink: true } }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
