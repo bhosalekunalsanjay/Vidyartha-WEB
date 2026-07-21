@@ -12,6 +12,18 @@ import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Fade from '@mui/material/Fade'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
+import List from '@mui/material/List'
+import ListItem from '@mui/material/ListItem'
+import ListItemText from '@mui/material/ListItemText'
+import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction'
+import Divider from '@mui/material/Divider'
+import CircularProgress from '@mui/material/CircularProgress'
+import { format } from 'date-fns'
 // Icons
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
@@ -26,6 +38,12 @@ import { notify } from '../store/notification.store'
 
 interface LocationState {
   from?: string
+}
+
+interface ActiveSession {
+  tokenId: string
+  deviceInfo: string
+  expiresAt: string
 }
 
 export default function LoginPage() {
@@ -43,9 +61,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Redirection target
-  const state = location.state as LocationState | null
-  const from = state?.from || '/'
+  // Session conflicts state
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  const [terminatingId, setTerminatingId] = useState<string | null>(null)
 
   // Simulate initial loading to demonstrate beautiful skeleton transitions
   useEffect(() => {
@@ -79,11 +98,32 @@ export default function LoginPage() {
       // Open success popup and redirect
       notify.success('You have successfully signed in.')
       setTimeout(() => {
-        navigate(from, { replace: true })
+        navigate('/', { replace: true })
       }, 1000)
     } catch (err: any) {
+      const errData = err.response?.data
+      if (err.response?.status === 409 && errData?.message === 'MAX_LOGINS_REACHED') {
+        setActiveSessions(errData.errors || [])
+        setDialogOpen(true)
+      }
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleTerminateAndLogin = async (tokenId: string) => {
+    setTerminatingId(tokenId)
+    try {
+      await login(username, password, tokenId)
+      setDialogOpen(false)
+      notify.success('Logged in successfully after terminating session.')
+      setTimeout(() => {
+        navigate('/', { replace: true })
+      }, 1000)
+    } catch (err: any) {
+      console.error(err)
+    } finally {
+      setTerminatingId(null)
     }
   }
 
@@ -263,6 +303,97 @@ export default function LoginPage() {
           </form>
         </Card>
       </Fade>
+
+      {/* Session Limit Exceeded Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 4,
+              p: 1.5,
+              bgcolor: 'background.paper',
+            }
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          Concurrent Login Limit Reached
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            You are currently logged in on 3 other devices. Choose an active session to terminate and log in here:
+          </DialogContentText>
+          <List sx={{ pt: 0 }}>
+            {activeSessions.map((session, index) => (
+              <Box key={session.tokenId}>
+                {index > 0 && <Divider />}
+                <ListItem sx={{ py: 1.5, px: 0 }}>
+                  <ListItemText
+                    primary={
+                      session.deviceInfo && session.deviceInfo.includes('Chrome') && session.deviceInfo.includes('Windows')
+                        ? 'Chrome on Windows'
+                        : session.deviceInfo && session.deviceInfo.includes('Firefox')
+                        ? 'Firefox Browser'
+                        : session.deviceInfo && session.deviceInfo.includes('Safari') && !session.deviceInfo.includes('Chrome')
+                        ? 'Safari Browser'
+                        : session.deviceInfo && (session.deviceInfo.includes('Mobile') || session.deviceInfo.includes('Android') || session.deviceInfo.includes('iPhone'))
+                        ? 'Mobile Device'
+                        : session.deviceInfo && session.deviceInfo.length > 50
+                        ? session.deviceInfo.substring(0, 47) + '...'
+                        : session.deviceInfo || 'Unknown Device'
+                    }
+                    secondary={`Expires: ${
+                      (() => {
+                        try {
+                          const d = new Date(session.expiresAt)
+                          if (isNaN(d.getTime())) return ''
+                          return format(d, 'MMM d, yyyy h:mm a')
+                        } catch {
+                          return ''
+                        }
+                      })()
+                    }`}
+                    slotProps={{
+                      primary: { sx: { fontWeight: 700, fontSize: '0.9rem' } },
+                      secondary: { sx: { fontSize: '0.8rem' } },
+                    }}
+                  />
+                  <ListItemSecondaryAction>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      disabled={terminatingId !== null}
+                      onClick={() => handleTerminateAndLogin(session.tokenId)}
+                      sx={{ textTransform: 'none', borderRadius: '6px', fontWeight: 700 }}
+                    >
+                      {terminatingId === session.tokenId ? (
+                        <CircularProgress size={16} color="inherit" />
+                      ) : (
+                        'Terminate & Login'
+                      )}
+                    </Button>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setDialogOpen(false)}
+            variant="text"
+            color="inherit"
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

@@ -13,9 +13,10 @@ import PersonIcon from '@mui/icons-material/PersonOutlined'
 import SettingsIcon from '@mui/icons-material/SettingsOutlined'
 import ExitToAppIcon from '@mui/icons-material/ExitToAppOutlined'
 import { useAuth } from '../context/AuthContext'
+import type { User } from '../interfaces/user.type'
 
-function getInitials(name: string) {
-  return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+function getInitials(user: User) {
+  return `${user.firstName[0]}${user.lastName ? user.lastName[0] : ''}`.toUpperCase()
 }
 
 export default function ProfileMenu() {
@@ -38,11 +39,11 @@ export default function ProfileMenu() {
         sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', p: 0.5, borderRadius: '50px' }}
       >
         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.85rem', fontWeight: 700 }}>
-          {getInitials(user.name)}
+          {getInitials(user)}
         </Avatar>
         <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'left' }}>
           <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: '0.85rem' }}>
-            {user.name}
+            {`${user.firstName} ${user.lastName ?? ''}`}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>
             {user.email}

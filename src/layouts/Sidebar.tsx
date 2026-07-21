@@ -16,6 +16,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SchoolIcon from '@mui/icons-material/SchoolOutlined'
 import { navConfig, isGroup, type NavItem } from '../routes/navConfig'
+import { useAuth } from '../context/AuthContext'
+import { checkUserRole } from '../utils/roleCheck'
 import {
   SIDEBAR_WIDTH,
   SIDEBAR_WIDTH_COLLAPSED,
@@ -146,9 +148,15 @@ function NavRow({
 }
 
 export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
+  const { user } = useAuth()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ Students: true })
 
   const toggleGroup = (label: string) => setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }))
+
+  const isSuper = checkUserRole.isSuperAdmin(user?.role)
+  const visibleNavItems = isSuper
+    ? navConfig
+    : navConfig.filter((item) => item.label === 'Dashboard')
 
   return (
     <Box
@@ -204,9 +212,9 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             </Typography>
           )}
         </Box>
-
+ 
         <List sx={{ flexGrow: 1, px: 1, py: 1.5, gap: 0.25, overflowY: 'auto' }}>
-          {navConfig.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavRow key={item.label} item={item} collapsed={collapsed} expandedMenus={expandedMenus} onToggleGroup={toggleGroup} />
           ))}
         </List>

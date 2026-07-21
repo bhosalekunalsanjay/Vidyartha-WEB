@@ -36,14 +36,14 @@ import { adminsService, type AdminItem } from '../services/adminService'
 import { schoolsService } from '../services/schoolService'
 import type { SchoolItem } from '../interfaces/school.type'
 import { useAuth } from '../context/AuthContext'
-import { UserRole } from '../enums/UserRole'
+import { checkUserRole } from '../utils/roleCheck'
 import { UserStatus } from '../enums/UserStatus'
 import { notify } from '../store/notification.store'
 import { UserStatusOptions } from '../options/UserStatus'
 
 export default function AdminsPage() {
   const { user } = useAuth()
-  const isSuperAdmin = true;//user?.role === UserRole.SUPER_ADMIN
+  const isSuperAdmin = checkUserRole.isSuperAdmin(user?.role)
 
   const [admins, setAdmins] = useState<AdminItem[]>([])
   const [pageLoading, setPageLoading] = useState(false)

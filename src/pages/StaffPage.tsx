@@ -34,6 +34,7 @@ import { staffService } from '../services/staffService'
 import { schoolsService } from '../services/schoolService'
 import type { StaffMember } from '../interfaces/staff.type'
 import type { SchoolItem } from '../interfaces/school.type'
+import { checkUserRole } from '../utils/roleCheck'
 import { UserRole } from '../enums/UserRole'
 import { UserStatus } from '../enums/UserStatus'
 import { useAuth } from '../context/AuthContext'
@@ -43,7 +44,7 @@ import type { User } from '../interfaces/payloads/user'
 
 export default function StaffPage() {
   const { user: authUser } = useAuth()
-  const isSuperAdmin = true;//authUser?.role === UserRole.SUPER_ADMIN
+  const isSuperAdmin = checkUserRole.isSuperAdmin(authUser?.role)
 
   // ─── List State ──────────────────────────────────────────────────────────────
   const [staff, setStaff] = useState<StaffMember[]>([])
